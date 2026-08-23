@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.mall</groupId>
+    <artifactId>mall-practice</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>mall-practice</name>
+    <description>电商商城微服务实战项目 - 父工程</description>
+
+    <!-- 16 个模块：4 基础 + 12 服务，与 README 工程结构一致 -->
+    <modules>
+        <!-- 基础模块 -->
+        <module>mall-common</module>
+        <module>mall-mbg</module>
+        <module>mall-api</module>
+        <module>mall-dubbo-api</module>
+        <!-- 服务模块 -->
+        <module>mall-gateway</module>
+        <module>mall-auth</module>
+        <module>mall-admin</module>
+        <module>mall-portal</module>
+        <module>mall-member</module>
+        <module>mall-product</module>
+        <module>mall-cart</module>
+        <module>mall-order</module>
+        <module>mall-payment</module>
+        <module>mall-coupon</module>
+        <module>mall-seckill</module>
+        <module>mall-search</module>
+    </modules>
+
+    <properties>
+        <!-- JDK 17：Boot 4 基线，IDEA 需配置本地 JDK 17（Docker 只承载部署期运行时） -->
+        <java.version>17</java.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- 版本铁三角：Boot 4.0.x + Cloud 2025.1.x + SCA 2025.1.0.0 -->
+        <spring-boot.version>4.0.7</spring-boot.version>
+        <spring-cloud.version>2025.1.0</spring-cloud.version>
+        <spring-cloud-alibaba.version>2025.1.0.0</spring-cloud-alibaba.version>
+
+        <!-- 生态组件：Boot 4 需专属 starter -->
+        <mybatis-plus.version>3.5.17</mybatis-plus.version>
+        <xxl-job.version>3.1.0</xxl-job.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot BOM -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Spring Cloud BOM -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Spring Cloud Alibaba BOM（Nacos/Sentinel/Seata/RocketMQ Stream 版本由它统一管理） -->
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Spring Cloud Gateway 已从主 BOM 拆出独立版本线（5.0.x 对应 Spring Cloud 2025.1），需单独引入 -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-gateway-dependencies</artifactId>
+                <version>5.0.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- MyBatis-Plus（Boot 4 专属 starter，3.5.13+ 才支持 Boot 4） -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <!-- XXL-Job 执行器客户端 -->
+            <dependency>
+                <groupId>com.xuxueli</groupId>
+                <artifactId>xxl-job-core</artifactId>
+                <version>${xxl-job.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- 未继承 spring-boot-starter-parent，插件版本需显式指定 -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <encoding>${project.build.sourceEncoding}</encoding>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

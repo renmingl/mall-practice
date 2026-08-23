@@ -1,0 +1,19 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: mall-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+    gateway:
+      # TODO 业务章节补充路由：lb://mall-auth、lb://mall-portal、lb://mall-admin 等
+      routes: []
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

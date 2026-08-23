@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.mall</groupId>
+        <artifactId>mall-practice</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>mall-api</artifactId>
+    <name>mall-api</name>
+    <description>Feign 契约模块：服务间调用的接口定义 + DTO（三阶段演进的第一阶段）</description>
+
+    <dependencies>
+        <!-- OpenFeign：契约接口的 @FeignClient 注解 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,22 @@
+server:
+  port: 8600
+
+spring:
+  application:
+    name: mall-cart
+  # 购物车纯 Redis 存储，不配置 datasource
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: 123456  # 作者本地账密（与 docker-compose 的 redis 密码一致），请按各自环境修改
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
