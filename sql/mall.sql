@@ -1,9 +1,9 @@
 -- ============================================================
--- mall 业务库（第三版：25 张表，覆盖电商核心链路 + 经典面试场景）
--- 命名规则：表名前缀 = 模块名，见表名即知所属服务
---   member_*          → mall-member 会员服务（member / member_address / member_point_log / member_favorite）
---   sys_*             → mall-auth 认证服务（后台 RBAC 账号体系；买家账号复用 member 表）
---   product_*         → mall-product 商品服务（category / brand / spu / sku / stock_log / comment）
+-- mall 业务库（第三版：28 张表，覆盖电商核心链路 + 经典面试场景）
+-- 命名规则：表名前缀 = 数据语义域（表装哪一域的数据），多数域与模块同名，见表名即知所属服务
+--   member_*          → 会员域（mall-member）：member / member_address / member_point_log / member_favorite
+--   admin_*           → 后台管理域（管理员账号 + RBAC 五表）：admin_user / admin_role / admin_menu / admin_user_role / admin_role_menu，由 mall-auth 认证权限服务持有（认证是动作无表，账号权限数据按语义域命名）
+--   product_*         → 商品域（mall-product）：category / brand / spu / sku / stock_log / comment / supplier / purchase / purchase_item（后三张为进销存域，与库存同域）
 --   orders/order_item → mall-order 订单服务（order 是 MySQL 保留字，订单表命名 orders；含 order_status_log 状态流水）
 --   payment_*         → mall-payment 支付服务（payment / refund）
 --   coupon_*          → mall-coupon 优惠券服务（coupon / coupon_user）
@@ -36,6 +36,7 @@ CREATE TABLE `member` (
   `birthday`    DATE         DEFAULT NULL COMMENT '生日',
   `status`      TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1正常 0禁用',
   `level`       TINYINT      NOT NULL DEFAULT 0 COMMENT '会员等级：0普通 1白银 2黄金 3钻石（权益划分，非 RBAC）',
+  `points`      INT          NOT NULL DEFAULT 0 COMMENT '积分余额（变动流水见 member_point_log）',
   `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
   `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
@@ -90,6 +91,7 @@ CREATE TABLE `product_brand` (
 
 CREATE TABLE `product_spu` (
   `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'SPU ID',
+  `spu_code`    VARCHAR(64)  NOT NULL COMMENT 'SPU 编码（商品编码，与 SKU 编码对称）',
   `category_id` BIGINT       NOT NULL COMMENT '分类ID',
   `brand_id`    BIGINT       DEFAULT NULL COMMENT '品牌ID',
   `name`        VARCHAR(128) NOT NULL COMMENT '商品名称',
@@ -104,6 +106,7 @@ CREATE TABLE `product_spu` (
   `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_spu_code` (`spu_code`),
   KEY `idx_category_id` (`category_id`),
   KEY `idx_brand_id` (`brand_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品SPU表';
@@ -116,6 +119,7 @@ CREATE TABLE `product_sku` (
   `price`          DECIMAL(10,2) NOT NULL COMMENT '售价',
   `original_price` DECIMAL(10,2) DEFAULT NULL COMMENT '原价/划线价',
   `stock`          INT           NOT NULL DEFAULT 0 COMMENT '库存',
+  `low_stock`      INT           DEFAULT NULL COMMENT '库存预警阈值（低于此值触发预警；NULL 取全局默认阈值）',
   `pic`            VARCHAR(255)  DEFAULT NULL COMMENT 'SKU 图片',
   `sale_count`     INT           NOT NULL DEFAULT 0 COMMENT '销量',
   `version`        INT           NOT NULL DEFAULT 0 COMMENT '乐观锁版本号（防超卖）',
@@ -133,7 +137,7 @@ CREATE TABLE `product_sku` (
 CREATE TABLE `orders` (
   `id`              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '订单ID',
   `order_sn`        VARCHAR(64)   NOT NULL COMMENT '订单号',
-  `request_id`      VARCHAR(64)   DEFAULT NULL COMMENT '幂等键（客户端生成，防重复提交）',
+  `request_id`      VARCHAR(64)   NOT NULL COMMENT '幂等键（客户端生成，防重复提交，下单必传）',
   `member_id`       BIGINT        NOT NULL COMMENT '会员ID',
   `order_type`      TINYINT       NOT NULL DEFAULT 1 COMMENT '订单类型：1普通 2秒杀',
   `member_name`     VARCHAR(64)   DEFAULT NULL COMMENT '会员名（下单快照）',
@@ -149,6 +153,8 @@ CREATE TABLE `orders` (
   `receiver_address` VARCHAR(255) DEFAULT NULL COMMENT '收货地址（省市区+详细，拼接快照）',
   `remark`          VARCHAR(255)  DEFAULT NULL COMMENT '买家备注',
   `pay_time`        DATETIME      DEFAULT NULL COMMENT '支付时间',
+  `delivery_company` VARCHAR(32)  DEFAULT NULL COMMENT '发货物流公司（后台发货填写）',
+  `delivery_sn`     VARCHAR(64)   DEFAULT NULL COMMENT '发货物流单号',
   `delivery_time`   DATETIME      DEFAULT NULL COMMENT '发货时间',
   `receive_time`    DATETIME      DEFAULT NULL COMMENT '收货时间',
   `create_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
@@ -220,7 +226,8 @@ CREATE TABLE `coupon` (
   `status`          TINYINT       NOT NULL DEFAULT 1 COMMENT '状态：1进行中 0已结束',
   `create_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='优惠券表';
 
 CREATE TABLE `coupon_user` (
@@ -249,7 +256,8 @@ CREATE TABLE `seckill_session` (
   `status`      TINYINT     NOT NULL DEFAULT 1 COMMENT '状态：1启用 0禁用',
   `create_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='秒杀场次表';
 
 CREATE TABLE `seckill_product` (
@@ -274,16 +282,16 @@ CREATE TABLE `seckill_product` (
 CREATE TABLE `product_stock_log` (
   `id`           BIGINT      NOT NULL AUTO_INCREMENT COMMENT '流水ID',
   `sku_id`       BIGINT      NOT NULL COMMENT 'SKU ID',
-  `order_sn`     VARCHAR(64) DEFAULT NULL COMMENT '关联订单号',
-  `change_type`  TINYINT     NOT NULL COMMENT '变动类型：1下单扣减 2支付扣减 3取消回补 4退款回补 5秒杀扣减 6人工调整',
+  `biz_sn`      VARCHAR(64) DEFAULT NULL COMMENT '业务单号（订单号 / 采购单号 / 退款单号）',
+  `change_type`  TINYINT     NOT NULL COMMENT '变动类型：1下单扣减 2取消回补 3退款回补 4秒杀扣减 5采购入库 6退货入库 7盘点调整 8人工调整',
   `change_count` INT         NOT NULL COMMENT '变动数量（正数扣减，负数回补）',
   `stock_before` INT         NOT NULL COMMENT '变动前库存',
   `stock_after`  INT         NOT NULL COMMENT '变动后库存',
   `create_time`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   KEY `idx_sku_id` (`sku_id`),
-  KEY `idx_order_sn` (`order_sn`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='库存流水表（扣减/回补对账，防超卖审计）';
+  KEY `idx_biz_sn` (`biz_sn`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='库存流水表（扣减/回补/采购入库/退货入库/盘点对账，防超卖审计）';
 
 CREATE TABLE `product_comment` (
   `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '评价ID',
@@ -296,6 +304,8 @@ CREATE TABLE `product_comment` (
   `content`       VARCHAR(500) DEFAULT NULL COMMENT '评价内容',
   `pics`          JSON         DEFAULT NULL COMMENT '晒图（JSON数组）',
   `status`        TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1正常 0隐藏',
+  `reply`         VARCHAR(500) DEFAULT NULL COMMENT '商家回复内容（后台评价管理回复）',
+  `reply_time`    DATETIME     DEFAULT NULL COMMENT '商家回复时间',
   `create_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_order_item_id` (`order_item_id`),
@@ -331,7 +341,9 @@ CREATE TABLE `refund` (
   `member_id`     BIGINT        NOT NULL COMMENT '会员ID',
   `refund_amount` DECIMAL(10,2) NOT NULL COMMENT '退款金额',
   `reason`        VARCHAR(255)  DEFAULT NULL COMMENT '退款原因',
-  `refund_type`   TINYINT       NOT NULL DEFAULT 1 COMMENT '退款类型：1全额 2部分',
+  `refund_type`   TINYINT       NOT NULL DEFAULT 1 COMMENT '退款类型：1仅退款 2退货退款（全额/部分由 refund_amount 与订单实付对比得出）',
+  `return_company` VARCHAR(32)  DEFAULT NULL COMMENT '退货物流公司（退货退款用）',
+  `return_sn`     VARCHAR(64)   DEFAULT NULL COMMENT '退货物流单号（退货退款用）',
   `status`        TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0申请中 1审核通过 2退款中 3已退款 4已拒绝',
   `apply_time`    DATETIME      DEFAULT NULL COMMENT '申请时间',
   `refund_time`   DATETIME      DEFAULT NULL COMMENT '退款到账时间',
@@ -388,11 +400,11 @@ CREATE TABLE `tx_message` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='本地消息表（事务消息/最终一致性）';
 
 -- ------------------------------------------------------------
--- 认证域：后台账号体系（mall-auth）——RBAC 五表
--- 设计说明：买家用 member（状态 + 等级权益模型），后台运营用 sys_user（RBAC 权限模型），
+-- 后台管理域：管理员账号体系（归属 mall-auth 认证权限服务）——RBAC 五表
+-- 设计说明：买家用 member（状态 + 等级权益模型），后台运营用 admin_user（RBAC 权限模型），
 -- 两套账号分离（人员属性/密码策略/登录入口不同）；角色权限不公用，语义不同不强行合并
 -- ------------------------------------------------------------
-CREATE TABLE `sys_user` (
+CREATE TABLE `admin_user` (
   `id`              BIGINT       NOT NULL AUTO_INCREMENT COMMENT '管理员ID',
   `username`        VARCHAR(64)  NOT NULL COMMENT '登录账号',
   `password`        VARCHAR(128) NOT NULL COMMENT '密码（BCrypt 加密）',
@@ -406,9 +418,9 @@ CREATE TABLE `sys_user` (
   `update_time`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台管理员表（与买家 member 分离的运营账号体系）';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台管理员表（后台管理域，与买家 member 分离的运营账号体系）';
 
-CREATE TABLE `sys_role` (
+CREATE TABLE `admin_role` (
   `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '角色ID',
   `name`        VARCHAR(64)  NOT NULL COMMENT '角色名称（如：超级管理员）',
   `code`        VARCHAR(64)  NOT NULL COMMENT '角色编码（如 SUPER_ADMIN，校验时加 ROLE_ 前缀）',
@@ -419,11 +431,11 @@ CREATE TABLE `sys_role` (
   UNIQUE KEY `uk_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台角色表（RBAC）';
 
-CREATE TABLE `sys_menu` (
+CREATE TABLE `admin_menu` (
   `id`        BIGINT       NOT NULL AUTO_INCREMENT COMMENT '菜单/权限ID',
   `parent_id` BIGINT       NOT NULL DEFAULT 0 COMMENT '父菜单ID，0为顶级',
   `name`      VARCHAR(64)  NOT NULL COMMENT '菜单/权限名称',
-  `type`      TINYINT      NOT NULL DEFAULT 1 COMMENT '类型：1菜单 2按钮',
+  `type`      TINYINT      NOT NULL DEFAULT 1 COMMENT '类型：1目录 2菜单 3按钮',
   `path`      VARCHAR(128) DEFAULT NULL COMMENT '前端路由路径',
   `perms`     VARCHAR(128) DEFAULT NULL COMMENT '权限标识（如 product:add，@PreAuthorize 校验用）',
   `icon`      VARCHAR(64)  DEFAULT NULL COMMENT '图标',
@@ -434,7 +446,7 @@ CREATE TABLE `sys_menu` (
   KEY `idx_parent_id` (`parent_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台菜单/权限表（RBAC 权限树）';
 
-CREATE TABLE `sys_user_role` (
+CREATE TABLE `admin_user_role` (
   `id`      BIGINT NOT NULL AUTO_INCREMENT COMMENT '关联ID',
   `user_id` BIGINT NOT NULL COMMENT '管理员ID',
   `role_id` BIGINT NOT NULL COMMENT '角色ID',
@@ -442,10 +454,55 @@ CREATE TABLE `sys_user_role` (
   UNIQUE KEY `uk_user_role` (`user_id`, `role_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理员-角色关联表';
 
-CREATE TABLE `sys_role_menu` (
+CREATE TABLE `admin_role_menu` (
   `id`      BIGINT NOT NULL AUTO_INCREMENT COMMENT '关联ID',
   `role_id` BIGINT NOT NULL COMMENT '角色ID',
   `menu_id` BIGINT NOT NULL COMMENT '菜单/权限ID',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_role_menu` (`role_id`, `menu_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色-菜单权限关联表';
+
+-- ==========================================
+-- 进销存域（归 mall-product，与库存同域：进货 → 入库 → 上架销售 → 退货）
+-- ==========================================
+
+CREATE TABLE `product_supplier` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '供应商ID',
+  `name`        VARCHAR(64)  NOT NULL COMMENT '供应商名称',
+  `contact`     VARCHAR(32)  DEFAULT NULL COMMENT '联系人',
+  `phone`       VARCHAR(20)  DEFAULT NULL COMMENT '联系电话',
+  `address`     VARCHAR(128) DEFAULT NULL COMMENT '地址',
+  `remark`      VARCHAR(255) DEFAULT NULL COMMENT '备注',
+  `status`      TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1合作中 0停用',
+  `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应商表（进销存-进）';
+
+CREATE TABLE `product_purchase` (
+  `id`           BIGINT        NOT NULL AUTO_INCREMENT COMMENT '采购单ID',
+  `purchase_sn`  VARCHAR(64)   NOT NULL COMMENT '采购单号（雪花ID，幂等）',
+  `supplier_id`  BIGINT        NOT NULL COMMENT '供应商ID',
+  `total_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT '采购总金额（采购价 x 数量）',
+  `status`       TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0待审核 1待收货 2部分入库 3已完成 4已取消',
+  `create_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_purchase_sn` (`purchase_sn`),
+  KEY `idx_supplier_status` (`supplier_id`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购单表（进销存-进）';
+
+CREATE TABLE `product_purchase_item` (
+  `id`                BIGINT        NOT NULL AUTO_INCREMENT COMMENT '采购明细ID',
+  `purchase_id`       BIGINT        NOT NULL COMMENT '采购单ID',
+  `sku_id`            BIGINT        NOT NULL COMMENT 'SKU ID',
+  `quantity`          INT           NOT NULL COMMENT '采购数量',
+  `received_quantity` INT           NOT NULL DEFAULT 0 COMMENT '已入库数量（分批收货累计）',
+  `purchase_price`    DECIMAL(12,2) NOT NULL COMMENT '采购单价',
+  `create_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_purchase_sku` (`purchase_id`, `sku_id`),
+  KEY `idx_sku_id` (`sku_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购单明细表（进销存-进）';

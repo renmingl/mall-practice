@@ -23,7 +23,9 @@
 ### 业务篇
 
 - [业务表设计总览](#业务表设计总览)
-- [电商面试场景清单](#电商面试场景清单)
+- [两平台功能菜单总览](#两平台功能菜单总览)
+- [电商技术场景清单](#电商技术场景清单)
+- [开发排期计划](#开发排期计划)
 
 ## 快速开始
 
@@ -55,7 +57,7 @@ docker compose up -d mysql
 # 导入 xxl_job 库（XXL-Job 调度中心表，3.1.0 版）
 Get-Content .\sql\xxl_job.sql -Raw -Encoding UTF8 | docker exec -i mall-mysql mysql -uroot -p123456
 
-# 导入 mall 业务库（第三版：25 张表，详见业务篇「业务表设计总览」）
+# 导入 mall 业务库（第三版：28 张表，详见业务篇「业务表设计总览」）
 Get-Content .\sql\mall.sql -Raw -Encoding UTF8 | docker exec -i mall-mysql mysql -uroot -p123456
 ```
 
@@ -89,7 +91,7 @@ docker compose up -d                         # 启动全部中间件（已运行
 docker compose up -d redis nacos             # 只启动指定服务
 docker compose restart mysql                 # 重启指定服务
 docker compose logs -f nacos                 # 跟踪某服务日志
-docker compose stop seckill                  # 停止某服务（不删容器）
+docker compose stop elasticsearch                  # 停止某服务（不删容器）
 docker compose down                          # 停止并删除全部容器（数据在宿主机卷 H:\docker-db 不丢）
 docker compose up -d --force-recreate nacos  # 修改 yaml 后强制重建某服务
 ```
@@ -133,7 +135,7 @@ foreach ($s in $services) { Start-Process mvn -ArgumentList "-pl",$s,"spring-boo
 
 > 资源提醒：12 个 JVM 约占用 4~6GB 内存；机器吃紧可分组勾选（未启动的服务不影响其他服务运行）。
 >
-> **模块可任意单独启动**：服务间调用发生在运行时，启动时只依赖中间件（Nacos/MySQL/Redis 等）。无微服务依赖的模块（product/cart/auth/member/search）单独启动即可用；聚合层模块（portal/admin/order 等）单独启动正常，仅在调用缺失的下游服务时对应功能不可用。
+> **模块可任意单独启动**：服务间调用发生在运行时，启动时只依赖中间件（Nacos/MySQL/Redis 等）。无微服务依赖的模块（product/cart/auth/member/search）单独启动即可用；有下游调用的模块（portal/admin/order 等）单独启动正常，仅在调用缺失的下游服务时对应功能不可用。
 
 ### 第 5 步：验证
 
@@ -566,7 +568,7 @@ graph LR
 
 ### 3. 核心业务链路时序图（下单主链路：覆盖 HTTP / Dubbo RPC / MQ 三种协议）
 
-> 对照业务篇「核心业务链路」文字版阅读；支付回调、超时关单、退款、秒杀链路都是本图主链路的变体（详见各面试场景小节）。
+> 对照业务篇「核心业务链路」文字版阅读；支付回调、超时关单、退款、秒杀链路都是本图主链路的变体（详见业务篇「电商技术场景清单」对应场景）。
 
 ```mermaid
 sequenceDiagram
@@ -600,7 +602,7 @@ sequenceDiagram
 
 ### 4. 工程结构图（16 模块分组树）
 
-> 模块职责明细见「工程结构」章节速查表；谁依赖谁见下图 5。
+> 模块职责明细见「工程结构」章节速查表（按平台 / 层次分四类）；谁依赖谁见下图 5。
 
 ```mermaid
 graph TB
@@ -614,29 +616,35 @@ graph TB
     BASE --> API["mall-api<br/>Feign 接口契约"]
     BASE --> DUBBOAPI["mall-dubbo-api<br/>Dubbo 接口契约"]
 
-    SVC --> GW["mall-gateway 网关 :8080"]
-    SVC --> AUTH["mall-auth 认证中心 :8100"]
-    SVC --> ADMIN["mall-admin 后台管理 :8200"]
-    SVC --> PORTAL["mall-portal 前台商城 :8300"]
-    SVC --> MEMBER["mall-member 会员服务 :8400"]
-    SVC --> PRODUCT["mall-product 商品服务 :8500"]
-    SVC --> CART["mall-cart 购物车服务 :8600"]
-    SVC --> ORDER["mall-order 订单服务 :8700"]
-    SVC --> PAY["mall-payment 支付服务 :8800"]
-    SVC --> COUPON["mall-coupon 营销服务 :8900"]
-    SVC --> SECKILL["mall-seckill 秒杀服务 :9000"]
-    SVC --> SEARCH["mall-search 搜索服务 :9100"]
+    SVC --> EDGE["平台与网关（3 个，无表不落库）"]
+    SVC --> BIZ["业务服务（9 个，数据归属）"]
 
-    CFG --> SQLDIR["sql/<br/>mall.sql（25 张表）<br/>xxl_job.sql（调度中心库）"]
+    EDGE --> GW["mall-gateway 网关 :8080"]
+    EDGE --> ADMIN["mall-admin 管理后台平台 :8200"]
+    EDGE --> PORTAL["mall-portal 前台商城平台 :8300"]
+
+    BIZ --> AUTH["mall-auth 认证中心 :8100<br/>（admin_* 五表）"]
+    BIZ --> MEMBER["mall-member 会员服务 :8400"]
+    BIZ --> PRODUCT["mall-product 商品服务 :8500"]
+    BIZ --> CART["mall-cart 购物车服务 :8600"]
+    BIZ --> ORDER["mall-order 订单服务 :8700"]
+    BIZ --> PAY["mall-payment 支付服务 :8800"]
+    BIZ --> COUPON["mall-coupon 营销服务 :8900"]
+    BIZ --> SECKILL["mall-seckill 秒杀服务 :9000"]
+    BIZ --> SEARCH["mall-search 搜索服务 :9100"]
+
+    CFG --> SQLDIR["sql/<br/>mall.sql（28 张表）<br/>xxl_job.sql（调度中心库）"]
     CFG --> DOCKERDIR["docker/ + docker-compose.yml<br/>8 个中间件一键编排"]
 
     classDef root fill:#1e293b,stroke:none,color:#fff
     classDef base fill:#059669,stroke:none,color:#fff
-    classDef svc fill:#0ea5e9,stroke:none,color:#fff
+    classDef edge fill:#2563eb,stroke:none,color:#fff
+    classDef biz fill:#0ea5e9,stroke:none,color:#fff
     classDef cfg fill:#64748b,stroke:none,color:#fff
     class ROOT root
     class COMMON,MBG,API,DUBBOAPI base
-    class GW,AUTH,ADMIN,PORTAL,MEMBER,PRODUCT,CART,ORDER,PAY,COUPON,SECKILL,SEARCH svc
+    class EDGE,GW,ADMIN,PORTAL edge
+    class BIZ,AUTH,MEMBER,PRODUCT,CART,ORDER,PAY,COUPON,SECKILL,SEARCH biz
     class SQLDIR,DOCKERDIR cfg
 ```
 
@@ -788,7 +796,7 @@ graph TB
 | Redisson 分布式锁 | ⏳ 待引入 | mall-common | 优惠券/库存/秒杀场景（锁） |
 | RocketMQ 客户端 | ⏳ 待引入 | mall-common（封装）+ order/payment/seckill（使用） | MQ 消息场景 |
 | Spring Security + JWT | ⏳ 待引入 | mall-auth（登录/签发/校验）+ mall-gateway（过滤器校验） | 用户模块场景 |
-| Sentinel 限流 | ⏳ 待引入 | 网关 / 秒杀 / 高频接口所在服务 | 高并发与安全场景 |
+| Sentinel 限流 | ⏳ 待引入 | 网关 / 秒杀 / 高频接口所在服务 | 高并发、安全与工程横切面（12.x） |
 | Seata 客户端 | ⏳ 待引入 | order（@GlobalTransactional 发起方）及下游参与方 | 分布式事务场景 |
 | XXL-Job core | ⏳ 待引入 | order（关单扫描）/ seckill（秒杀预热） | 订单/秒杀场景 |
 | Elasticsearch 客户端 | ⏳ 待引入（Boot 4 兼容版待验证） | mall-search | 搜索场景 |
@@ -796,29 +804,60 @@ graph TB
 | Apache Dubbo 3 | ⏳ 待引入（Boot 4 适配待官方支持） | order + product/coupon/payment/seckill + mall-dubbo-api | 演进第三阶段 |
 | SkyWalking | 无需 pom 依赖（javaagent 无侵入） | 全部服务 | 链路追踪演示 |
 
+### 可选增强（暂不引入，刻意精简）
+
+市面生产电商平台标配、但本学习项目刻意不引入的组件，均标注了替代方案与引入时机：
+
+| 组件 | 市面用途 | 本项目替代方案 | 暂不引入理由 |
+|---|---|---|---|
+| Prometheus + Grafana | 指标监控告警 | Actuator 端点 + SkyWalking 性能分析 | 学习阶段无真实告警需求，SkyWalking 已覆盖观测性 |
+| ELK（ES + Logstash + Kibana） | 集中日志检索 | Logback 文件日志 + MDC traceId 串链 | 单机调试场景下文件日志已够，traceId 可串起跨服务链路 |
+| CI/CD（GitHub Actions 等） | 自动化构建部署 | IDEA 本地构建 + Docker Compose 手动部署 | 单人开发节奏下无自动化收益 |
+| 三方短信服务 | 短信验证码 | Redis 存码 + 控制台日志打印模拟 | 需实名与费用，学习项目用模拟实现同样可演示验证码逻辑 |
+| 数据字典 / 定时任务平台 | 配置项集中管理 | Nacos 配置中心 + xxl-job 控制台 | 能力已由现有组件覆盖 |
+
 ## 工程结构（模块架构）
 
-模块职责速查表（工程结构树见「系统架构」图 4，编译期 / 运行时依赖关系见「系统架构」图 5）：
+16 个模块按「平台 / 层次」分四类（工程结构树见「系统架构」图 4，编译期 / 运行时依赖关系见「系统架构」图 5）：
+
+**① 前端平台（聚合层，无表不落库）**
+
+| 模块 | 平台定位 | 职责 |
+|---|---|---|
+| mall-admin | 管理后台平台（B 端运营） | 运营管理聚合：商品 / 采购 / 库存 / 订单 / 售后 / 营销 / 数据 / 系统等菜单背后的数据组装，编排调用各业务服务，自身无表无数据库 |
+| mall-portal | 前台商城平台（C 端买家） | 买家侧聚合：首页、商品详情、购物车、下单流程编排，自身无表无数据库 |
+
+**② 统一入口与认证（两平台共用）**
+
+| 模块 | 职责 |
+|---|---|
+| mall-gateway | 统一入口：路由、鉴权、限流、跨域 |
+| mall-auth | 认证中心：前后台账号认证（买家复用 member + 后台 admin_user）、JWT 签发 / 校验、RBAC 角色权限（admin_* 五表） |
+
+**③ 业务服务（数据归属，供两平台共用）**
+
+| 模块 | 职责 |
+|---|---|
+| mall-member | 会员信息、收货地址、积分 |
+| mall-product | 商品、分类、品牌、库存、供应商 / 采购（进销存） |
+| mall-cart | 购物车（Redis 存储） |
+| mall-order | 订单、关单延迟消息 |
+| mall-payment | 支付对接、支付回调、退款 |
+| mall-coupon | 优惠券发放与核销 |
+| mall-seckill | 秒杀活动（Redis 预扣 + 限流 + 削峰） |
+| mall-search | 商品搜索（ES 索引与检索） |
+
+**④ 基础与契约模块**
 
 | 模块 | 职责 |
 |---|---|
 | mall-common | 统一返回结构、全局异常、工具类、Redis 配置（依赖已就绪）；RocketMQ 消息封装、存储封装为规划职责（rocketmq/oss 依赖待对应章节引入） |
 | mall-mbg | MyBatis Generator 代码生成，产出实体类与 Mapper |
 | mall-api / mall-dubbo-api | 服务间调用接口契约，Feign 与 Dubbo 各自独立定义（mall-api 已内置 openfeign 依赖；mall-dubbo-api 当前空模块，Dubbo 依赖随第三阶段一起引入） |
-| mall-gateway | 统一入口：路由、鉴权、限流、跨域 |
-| mall-auth | 前后台账号认证（买家复用 member + 后台 sys_user）、JWT 签发/校验、RBAC 角色权限 |
-| mall-admin | 管理后台聚合服务：商品管理、订单管理等 |
-| mall-portal | 前台商城聚合服务：首页、商品详情、下单流程编排 |
-| mall-member | 会员信息、收货地址、积分 |
-| mall-product | 商品、分类、品牌、库存 |
-| mall-cart | 购物车（Redis 存储） |
-| mall-order | 订单、关单延迟消息 |
-| mall-payment | 支付对接、支付回调 |
-| mall-coupon | 优惠券发放与核销 |
-| mall-seckill | 秒杀活动（Redis 预扣 + 限流 + 削峰） |
-| mall-search | 商品搜索（ES 索引与检索） |
 
-> 骨架阶段说明：当前 12 个服务模块仅含启动类 + application.yml（可直接启动并注册 Nacos），基础模块仅含 pom 依赖定义；全部业务代码（实体/Mapper/Service/Controller、mall-common 工具类）按业务篇「电商面试场景清单」逐场景实现，依赖引入时机见「技术栈 → 依赖引入状态」小节。
+> **「平台 ≠ 服务」辨析**：mall-admin / mall-portal 是平台聚合层（只管页面数据组装与流程编排，无表）；mall-product / mall-order 等是业务数据服务（拥有表，被两个平台共同调用）——mall-product 不是「管理后台」，mall-admin 也不是「数据服务」。表名前缀按数据语义域命名（product_* 商品域归 mall-product、admin_* 后台管理域归 mall-auth 持有）：admin_* 是后台账号权限数据，由认证权限服务管而非聚合层建表；买家账号复用 member，故不存在 portal_ 前缀表（平台数据边界见业务篇「业务表设计总览」）。
+
+> 骨架阶段说明：当前 12 个服务模块仅含启动类 + application.yml（可直接启动并注册 Nacos），基础模块仅含 pom 依赖定义；全部业务代码（实体/Mapper/Service/Controller、mall-common 工具类）按业务篇「电商技术场景清单」逐场景实现，依赖引入时机见「技术栈 → 依赖引入状态」小节。
 
 ## 服务间通信
 
@@ -877,118 +916,146 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 
 ## 业务表设计总览
 
-`sql/mall.sql` 共 **25 张表**，表名前缀 = 模块名，见表名即知所属服务：
+`sql/mall.sql` 共 **28 张表**，表名前缀 = **数据语义域**（表装的是哪一域数据，而非被哪个平台使用）——多数域与模块同名（member_* 会员域归 mall-member、product_* 商品域归 mall-product）；例外有两个——admin_*（语义域 = 后台管理，管理员账号 + RBAC，由 mall-auth 认证权限服务持有）与 tx_message（公共域组件表，归 mall-common，前缀取语义而非模块名）：
 
 | 域 | 模块 | 表 | 支撑场景 |
 |---|---|---|---|
-| 认证域 | mall-auth | sys_user、sys_role、sys_menu、sys_user_role、sys_role_menu | 后台管理员账号 + RBAC 角色权限（买家账号复用 member） |
+| 后台管理域 | mall-auth（持有） | admin_user、admin_role、admin_menu、admin_user_role、admin_role_menu | 后台管理员账号 + RBAC 角色权限（菜单树：1目录 2菜单 3按钮；买家账号复用 member） |
 | 会员域 | mall-member | member、member_address、member_point_log、member_favorite | 注册登录、收货地址、积分流水、收藏 |
-| 商品域 | mall-product | product_category、product_brand、product_spu、product_sku、product_stock_log、product_comment | 分类/品牌/SPU/SKU、库存流水对账、商品评价 |
-| 订单域 | mall-order | orders、order_item、order_status_log | 订单主表（幂等 request_id、类型 order_type）、快照明细、状态流转审计 |
-| 支付域 | mall-payment | payment、refund | 支付流水（回调幂等）、退款单（退款状态机） |
+| 商品域 | mall-product | product_category、product_brand、product_spu、product_sku、product_stock_log、product_comment | 分类/品牌/SPU（spu_code）/SKU（sku_code / low_stock 预警阈值）、库存流水对账（biz_sn + change_type 8 类）、商品评价（reply 商家回复） |
+| 进销存域 | mall-product | product_supplier、product_purchase、product_purchase_item | 供应商档案、采购单（状态机 / 明细）、分批入库（与库存流水联动，归商品域同库） |
+| 订单域 | mall-order | orders、order_item、order_status_log | 订单主表（幂等 request_id、类型 order_type、发货物流 delivery_company/delivery_sn）、快照明细、状态流转审计 |
+| 支付域 | mall-payment | payment、refund | 支付流水（回调幂等）、退款单（退款状态机；refund_type 仅退款/退货退款 + 退货物流 return_sn） |
 | 营销域 | mall-coupon | coupon、coupon_user | 优惠券（发行总量/每人限领 per_limit）、领取/锁定/核销记录 |
 | 秒杀域 | mall-seckill | seckill_session、seckill_product | 秒杀场次、秒杀商品（限购/秒杀价/秒杀库存） |
 | 公共域（组件） | mall-common | tx_message | 本地消息表（事务消息/最终一致性；表由使用事务消息的服务操作，如 order/payment，mall-common 本身不连 MySQL） |
 
-无表模块：mall-cart（购物车纯 Redis Hash）、mall-search（ES 索引）、聚合层（gateway/admin/portal）；认证域 sys_* 五表归 mall-auth。
+无表模块：mall-cart（购物车纯 Redis Hash）、mall-search（ES 索引）、平台聚合层（gateway/admin/portal）；后台管理域 admin_* 五表由 mall-auth 持有。
+
+**表与平台的数据边界**（前台商城 C 端 vs 管理后台 B 端，均不混用）：
+
+| 边界类型 | 表 | 说明 |
+|---|---|---|
+| 后台专属（仅 B 端使用） | admin_* 五表 | 管理员账号 + RBAC 菜单权限，仅 mall-auth 读写；买家账号复用 member——两套账号体系彻底分离（登录入口 / 密码策略 / 数据模型不同，见场景 1.7） |
+| 前台买家数据（C 端产生，B 端只读管理） | member、member_address、member_point_log、member_favorite | 注册登录 / 地址 / 积分流水 / 收藏均由买家产生；后台「会员管理 / 积分查询」仅查询或停用管理——同一对象两侧视图，非数据混用 |
+| 跨平台共享业务数据（必须同源） | product_*、orders、order_item、order_status_log、payment、refund、coupon、coupon_user、seckill_* | 前台下单、后台发货履约 / 售后审核是同一业务对象的两端操作（订单：买家创建 → 后台发货 → 买家收货），必须同一份数据；若按平台拆成两套表会双写不一致、订单对账断裂 |
+
+> 表前缀为何不按平台命名：同一张表两平台都可能读写，前缀只能取一个，故取「数据语义域」而非「使用平台」；admin_ 五表虽是后台专属数据，但归属 mall-auth（认证权限服务）而非 mall-admin（聚合层不建表）；买家账号复用 member，故不存在 portal_ 前缀表。
 
 **核心业务链路**：
 
 1. **下单主链路**：下单（request_id 幂等）→ 锁定优惠券（coupon_user 状态→已锁定）→ 扣库存（乐观锁 version + stock_log 流水）→ 创建订单（orders + order_item 快照）→ 分布式事务（Seata AT）→ 支付
 2. **支付链路**：支付回调（trade_no 幂等）→ 更新订单状态（order_status_log 记录流转）→ MQ 异步通知（发积分/短信等非核心动作；库存已在下单时乐观锁扣减，此处无需再动）
 3. **超时关单**：RocketMQ 延迟消息 → 关单 → 回补库存（stock_log）→ 退回优惠券（coupon_user 已锁定→未使用）
-4. **退款链路**：申请退款（refund 创建）→ 审核 → 第三方退款 → 回补库存 + 退回优惠券 + 订单状态→已退款
+4. **退款链路**：申请退款（refund 创建，仅退款 / 退货退款两分支）→ 审核 → 第三方退款 → 回补库存 + 退回优惠券 + 订单状态→已退款；退货退款分支：买家寄回（return_company / return_sn 退货物流）→ 后台确认 → 退货入库（stock_log change_type=6）→ 再打款
 5. **秒杀链路**：预热（Redis 预扣）→ Lua 原子扣减 → MQ 削峰异步下单（orders.order_type=2）→ 异步扣 sku.stock
+6. **履约与评价链路**：后台发货（orders.delivery_company / delivery_sn 物流 + delivery_time，1待发货→2待收货）→ 确认收货 / 超时自动收货（receive_time→3已完成）→ 评价（product_comment，唯一键防重复评价 + 后台回复）→ 积分返还（member_point_log）
+7. **进销存链路**：采购单（product_purchase 状态机）→ 分批入库（sku.stock 增加 + stock_log change_type=5）→ 上架销售（下单扣减）→ 售后退货入库（change_type=6）+ 退款打款；盘点差异（change_type=7）调整留痕——库存从此有进有出，不靠「直接设库存」
 
-## 电商面试场景清单
+## 两平台功能菜单总览
 
-> 覆盖近两年电商面试高频场景，按模块列出「业务功能 → 面试点 → 落地表/方案」。
+> 本项目共两个平台：**前台商城（C 端买家，mall-portal）** 与 **管理后台（B 端运营，mall-admin）**，职责边界：买家在商城逛、买、售后；运营在后台管商品、管库存、管采购、管订单履约、管营销、看数据。菜单按市面主流电商系统通用划分设计（参考市面电商后台的商品中心 / 订单中心 / 采购中心 / 库存中心 / 促销中心 / 系统管理结构，以及 ERP 进销存的供应商 / 采购入库 / 退货入库链路），每条目标注对应「电商技术场景清单」功能点编号，保证菜单与功能点一一对应、两平台不交叉。
 
-### 1. 用户模块（mall-member / mall-auth）
+### 管理后台（mall-admin，B 端运营端）
 
-- **功能**：买家注册登录（BCrypt 加密）、JWT 签发/刷新、网关 JWT 鉴权、信息修改、收货地址管理；后台管理员登录 + RBAC 角色权限
-- **面试点**：密码为什么不用 MD5（加盐/慢哈希）；JWT 优缺点（无状态 vs 无法主动失效）；JWT 黑名单（Redis 存储，网关过滤校验）；网关鉴权 vs 业务服务鉴权区别；**前后台账号为什么分离**（买家 vs 运营：人员属性/密码策略/登录入口不同——member 状态+等级权益模型 vs sys_user RBAC 权限模型）；**RBAC 五表**（用户-角色-菜单，权限粒度到按钮，@PreAuthorize 校验 perms）；买家侧"权限"= 账号状态（禁用/拉黑）+ 会员等级权益（level 折扣/免运费/积分倍率），为什么买家不用 RBAC（扁平权益 vs 树形权限）
-- **表**：member（含 level）、member_address、sys_user/sys_role/sys_menu/sys_user_role/sys_role_menu
+> 菜单树即 admin_menu 表初始化数据（RBAC 权限粒度到菜单 / 按钮），页面由后台前端工程渲染。
 
-### 2. 商品模块（mall-product）
+| 一级菜单 | 二级菜单 | 页面功能 | 对应功能点 |
+|---|---|---|---|
+| 首页看板 | — | 今日订单数 / 销售额 / 新增会员 / 库存预警数概览 | 10.4、5.5 |
+| 商品中心 | 商品管理 | 商品列表 / 编辑（SPU+SKU）/ 图片上传 / 上下架 | 2.2、2.3、2.6 |
+| | 分类管理 | 分类树维护 | 2.1 |
+| | 品牌管理 | 品牌增删改 | 2.1 |
+| | 评价管理 | 评价审核 / 回复 / 删除 | 2.8 |
+| 采购中心 | 供应商管理 | 供应商档案 / 停用 | 15.1 |
+| | 采购单管理 | 创建采购单 / 审核 / 取消 | 15.2 |
+| | 入库管理 | 分批收货入库 / 入库记录查询 | 15.3、15.6 |
+| | 库存管理 | 实时库存查询 / 库存流水查询 / 盘点调整 / 库存预警 | 5.1、5.4、15.4、5.5 |
+| 订单中心 | 订单管理 | 订单列表 / 详情（含支付流水）/ 后台发货 | 6.4、6.8 |
+| | 售后管理 | 退款 / 退货审核（确认收货 → 退货入库联动） | 7.9、15.5 |
+| 会员中心 | 会员管理 | 会员列表 / 等级 / 禁用 | 1.5 |
+| | 积分管理 | 积分流水查询 | 1.11 |
+| 营销中心 | 优惠券管理 | 券模板创建 / 发行 / 查询 | 4.1 |
+| | 秒杀管理 | 场次管理 / 秒杀商品配置 | 14.1、14.2 |
+| 数据统计 | 销售统计 | 销售额 / 订单量趋势 / 销量榜 | 10.4 |
+| | 商品统计 | 商品 PV / UV / 浏览排行 | 10.2 |
+| | 会员统计 | 日活 / 签到 / 在线人数 | 10.1、10.3 |
+| 系统管理 | 用户管理 | 后台账号增删改 | 1.7 |
+| | 角色管理 | 角色 + 权限分配 | 1.8、1.9 |
+| | 菜单管理 | 菜单 / 按钮权限维护 | 1.8 |
 
-- **功能**：SPU/SKU 模型、上下架、列表/详情、Redis 缓存商品详情、缓存预热
-- **面试点**：SPU/SKU 模型设计（面试必问）；缓存穿透（布隆过滤器/缓存空值）；缓存击穿（互斥锁/逻辑过期）；缓存雪崩（TTL 随机偏移）；DB 与 Redis 双写一致性（先更 DB 再删缓存/延迟双删/Canal）；热点 key 高并发读
-- **表**：product_category/brand/spu/sku
+### 前台商城（mall-portal，C 端买家端）
 
-### 3. 购物车模块（mall-cart）
+| 一级频道 | 页面 | 页面功能 | 对应功能点 |
+|---|---|---|---|
+| 首页 | 首页 | 分类导航 / 推荐商品 | 2.3 |
+| 商品频道 | 商品列表页 | 分类筛选 / 排序 | 2.3 |
+| | 商品详情页 | 详情 / 加购 / 收藏 / 点赞 / 秒杀入口 | 2.3、2.4、2.7、10.5 |
+| | 搜索页 | ES 搜索 / 联想 / 高亮 | 13.2 |
+| 购物车 | 购物车页 | 加购 / 改数量 / 勾选结算 | 3.1~3.5 |
+| 交易频道 | 结算页 | 地址 / 选券 / 优惠计算 / 提交订单 | 3.5、4.7、6.1 |
+| | 收银台 | 拉起支付 / 模拟支付 | 7.1、7.2 |
+| | 支付结果页 | 成功 / 失败结果 | 7.4 |
+| 订单中心 | 订单列表 | 全部状态 tab / 取消 / 付款 | 6.4、6.5 |
+| | 订单详情 | 物流 / 状态轨迹 / 确认收货 | 6.4、6.8、6.9 |
+| | 评价页 | 打分 / 图文评价 | 2.8 |
+| | 退款 / 退货页 | 申请退款（仅退款 / 退货退款）/ 填写退货物流 | 7.8、15.5 |
+| 会员中心 | 登录 / 注册 / 找回 | 图形验证码 / 短信 | 1.1、1.10、12.5 |
+| | 个人资料 | 头像 / 昵称 | 1.4 |
+| | 收货地址 | 地址增删改 | 1.6 |
+| | 我的收藏 | 收藏列表 | 2.7 |
+| | 浏览足迹 | 最近浏览 50 条 | 10.6 |
+| | 我的积分 | 余额 / 流水 / 签到 | 1.11、10.3 |
+| | 我的优惠券 | 可用 / 已用 / 过期 | 4.2~4.6 |
+| 秒杀频道 | 秒杀会场 | 场次切换 / 秒杀下单 / 结果查询 | 14.1、14.4、14.5、14.6 |
 
-- **功能**：增删改查，Redis Hash 存储（key=cart:{memberId}）
-- **面试点**：购物车为什么放 Redis（读写频繁/非强一致）；购物车与 DB 同步方案
-- **表**：无（纯 Redis）
+**两平台边界**：前台只做买货相关（浏览 / 加购 / 下单 / 售后申请 / 个人资产），无任何管理动作；后台只做运营管理（商品 / 库存 / 采购 / 订单履约 / 售后审核 / 营销 / 数据 / 系统），无购物车 / 收藏等买家行为。同一业务对象两侧视图不同（如库存：前台只读剩余量，后台可查可盘可入）。
 
-### 4. 优惠券模块（mall-coupon）
+**功能点全覆盖说明**：109 个功能点按「是否有用户界面」分两类——**59 个页面级功能点**（浏览 / 下单 / 管理操作等）已在上方两表逐条映射到菜单 / 页面，全覆盖无遗漏；**50 个系统级技术点**无独立页面入口属正常设计（如 8.x MQ 消息、9.x Redis、11.x 数据库、12.x 高并发与工程横切面、13.x 架构进阶、14.x 秒杀内部链路等），它们以「页面功能背后的实现」形式落地（例：8.2 延迟消息关单支撑订单列表的自动关闭、9.2 缓存三防支撑商品详情页的高并发读、12.3 幂等 token 支撑结算页防重复下单），验收时按对应场景清单逐项验证即可。
 
-- **功能**：创建/发放/领取/锁定/核销/过期作废/退款退回
-- **面试点**：**超领问题**（Redisson 分布式锁 + Lua 原子扣减，received_count < total_count）；每人限领 per_limit；领取幂等（Redis SETNX + 分布式锁，因 per_limit 可 >1 无法用唯一键兜底）；下单锁券/取消退回（coupon_user 状态机）；过期处理（Redis 过期 key + xxl-job 定时兜底）；Redisson 可重入/锁续期/锁失效
-- **表**：coupon（per_limit）、coupon_user（0未使用 1已锁定 2已使用 3已过期）
+## 电商技术场景清单
 
-### 5. 库存模块（mall-product）【面试必问】
+> 覆盖近两年电商高频技术场景，15 个场景共 109 个业务功能点，以表格形式总览——功能点逐项编号，技术方案就近写入对应单元格，一眼看清每个场景「做什么 + 用什么技术」。
 
-- **功能**：库存查询/扣减/回滚，下单扣库存、超时未支付释放，库存预警
-- **面试点**：**超卖三方案**——MySQL 乐观锁（`update ... where stock>=n and version=?`）、悲观锁（`select for update`）、Redis 预扣 + MQ 异步落库；扣减失败事务回滚（Seata）；延迟消息释放库存；库存流水对账（每笔变动记录 stock_before/stock_after）；为什么会超卖（check-then-act 非原子）；乐观锁优缺点（无锁等待 vs ABA/重试风暴）
-- **表**：product_sku（version 乐观锁）、product_stock_log（流水对账）
+| 场景（模块） | 业务功能点 | 技术点（含落地表） |
+| --- | --- | --- |
+| **1. 用户模块**（mall-member / mall-auth） | 1.1 买家注册 / 登录<br>1.2 JWT 签发 / 刷新<br>1.3 网关 JWT 鉴权<br>1.4 个人资料修改<br>1.5 会员等级权益<br>1.6 收货地址管理<br>1.7 后台管理员登录<br>1.8 RBAC 权限管理<br>1.9 接口权限校验<br>1.10 修改 / 找回密码<br>1.11 积分查询与流水 | 1.1 BCrypt 加密（加盐 / 慢哈希，不用 MD5）<br>1.2 JWT 无状态 vs 无法主动失效 → Redis 黑名单（网关过滤校验）<br>1.3 网关鉴权 vs 业务服务鉴权区别<br>1.5 member.level：折扣 / 免运费 / 积分倍率；买家侧"权限"= 账号状态（禁用 / 拉黑）+ 等级权益，为什么不用 RBAC（扁平权益 vs 树形权限）<br>1.7 前后台账号分离：人员属性 / 密码策略 / 登录入口不同（member 状态+等级权益模型 vs admin_user RBAC 权限模型）<br>1.8 RBAC 五表（用户-角色-菜单），权限粒度到按钮<br>1.9 @PreAuthorize 校验 perms<br>1.10 短信 / 邮箱验证码（Redis 存码 + 过期）<br>1.11 member.points 余额 + member_point_log 流水（支付返积分 / 退款扣回）<br>**表**：member（level / points）、member_address、member_point_log、admin_user / admin_role / admin_menu / admin_user_role / admin_role_menu |
+| **2. 商品模块**（mall-product） | 2.1 商品分类 / 品牌管理<br>2.2 SPU / SKU 模型维护<br>2.3 商品列表 / 详情查询<br>2.4 商品详情 Redis 缓存<br>2.5 缓存预热<br>2.6 商品图片上传<br>2.7 商品收藏 / 取消收藏<br>2.8 商品评价（打分 / 图文，确认收货后） | 2.1 分类树<br>2.2 规格、价格、上下架；SPU/SKU 模型设计（核心）<br>2.4 穿透（布隆过滤器 / 缓存空值）；击穿（互斥锁 / 逻辑过期）；雪崩（TTL 随机偏移）<br>DB 与 Redis 双写一致性（先更 DB 再删缓存 / 延迟双删 / Canal）；热点 key 高并发读<br>2.5 xxl-job 定时加载热点商品<br>2.6 本地文件存储默认，OSS 可切换<br>2.7 member_favorite 收藏列表（member_id + spu_id 唯一防重复）<br>2.8 product_comment 评价（uk_order_item_id 唯一键防重复评价；后台审核 / 回复 reply / 隐藏）<br>**表**：product_category / product_brand / product_spu / product_sku、member_favorite、product_comment |
+| **3. 购物车模块**（mall-cart） | 3.1 加入购物车<br>3.2 修改数量 / 删除条目 / 勾选结算<br>3.3 购物车列表查询<br>3.4 下单成功后清理已结算条目<br>3.5 结算前校验（下架 / 库存 / 价格变更） | 3.1 Redis Hash：key=cart:{memberId}，field=skuId<br>购物车为什么放 Redis（读写频繁 / 非强一致）；购物车与 DB 同步方案<br>3.5 失效条目标记 + 结算时提示，避免下单时才报错<br>**表**：无（纯 Redis） |
+| **4. 优惠券模块**（mall-coupon） | 4.1 券模板创建 / 发行<br>4.2 用户领券<br>4.3 下单锁券<br>4.4 支付成功核销<br>4.5 取消订单 / 退款退回<br>4.6 过期作废<br>4.7 下单优惠计算（满减 / 折扣） | 4.1 总量 total_count、每人限领 per_limit<br>4.2 防超领：Redisson 分布式锁 + Lua 原子扣减（received_count < total_count）；领取幂等：Redis SETNX + 分布式锁（per_limit 可 >1，无法唯一键兑底）<br>4.3~4.5 coupon_user 状态机：未使用→已锁定→已使用，取消 / 退款退回→未使用<br>4.6 Redis 过期 key + xxl-job 定时兑底<br>Redisson：可重入 / 锁续期 / 锁失效<br>4.7 按 threshold 满减门槛 / amount 折扣率计算优惠金额；全场券（无品类 / 单品维度，简化设计）<br>**表**：coupon（per_limit）、coupon_user（0未使用 1已锁定 2已使用 3已过期） |
+| **5. 库存模块**（mall-product）【核心】 | 5.1 库存查询<br>5.2 下单扣库存<br>5.3 取消订单 / 超时关单回补库存<br>5.4 库存流水记录<br>5.5 库存预警 | 5.2 超卖三方案：MySQL 乐观锁（update ... where stock>=n and version=?）/ 悲观锁（select for update）/ Redis 预扣 + MQ 异步落库；扣减失败 Seata 事务回滚<br>5.3 延迟消息释放库存<br>5.4 stock_log 每笔 before / after + change_type 8 类（1下单扣减 2取消回补 3退款回补 4秒杀扣减 5采购入库 6退货入库 7盘点调整 8人工调整）+ biz_sn 业务单号，可对账<br>5.5 sku.low_stock 阈值（低于即预警，NULL 取全局默认）→ 通知运营联动补货<br>为什么会超卖：check-then-act 非原子；乐观锁优缺点（无锁等待 vs ABA / 重试风暴）<br>**表**：product_sku（version 乐观锁）、product_stock_log（流水对账） |
+| **6. 订单模块**（mall-order）【电商核心】 | 6.1 创建订单<br>6.2 订单明细快照<br>6.3 订单状态机流转<br>6.4 订单列表 / 详情查询<br>6.5 取消订单<br>6.6 超时关单<br>6.7 大流量接口防刷<br>6.8 后台发货<br>6.9 确认收货 / 超时自动收货 | 6.1 下单幂等：request_id 唯一索引 + 前端 token；雪花算法订单号（时间回拨：回拨等待 / 备用生成器）<br>6.2 order_item 保存下单时价格 / 名称<br>6.3 6 状态（0待付款 1待发货 2待收货 3已完成 4已取消 5已退款）+ order_status_log 审计防乱改<br>6.5 回补库存 + 退回优惠券<br>6.6 RocketMQ 延迟消息（30 分钟未支付自动关闭，释放库存 + 退回券）<br>6.7 Sentinel；订单分库分表（按 member_id 哈希，ShardingSphere）<br>6.8 后台发货：orders.delivery_company / delivery_sn 物流单号 + delivery_time 发货时间（1待发货→2待收货）<br>6.9 orders.receive_time 记录收货时间（2待收货→3已完成）；超时自动收货（延迟消息 / xxl-job 扫描）<br>**表**：orders（request_id / order_type）、order_item（快照）、order_status_log |
+| **7. 支付与退款模块**（mall-payment）【核心】 | 7.1 拉起收银台<br>7.2 模拟第三方支付<br>7.3 支付回调接收<br>7.4 回调更新订单状态<br>7.5 支付结果 MQ 异步通知<br>7.6 支付单状态机<br>7.7 回调丢失主动查单<br>7.8 申请退款（仅退款 / 退货退款）<br>7.9 退款审核<br>7.10 调用第三方退款<br>7.11 退款成功联动<br>7.12 MQ 异步通知业务更新 | 7.1 生成支付单 / 支付参数<br>7.2 支付宝 / 微信渠道<br>7.3 回调幂等：trade_no 唯一 + 状态前置校验 + 加锁；回调接口不能耗时（第三方重试机制 / 超时）→ 耗时操作 MQ 异步<br>7.4 order_status_log 记录流转<br>7.5 发积分 / 短信；消息可靠性<br>7.6 payment.status：0待支付 1成功 2失败 3已退款<br>7.7 定时扫描待支付单 → 第三方查单兑底<br>7.8 refund 退款状态机（0申请中 1审核通过 2退款中 3已退款 4已拒绝）；refund_type：1仅退款 2退货退款（全额 / 部分由 refund_amount 与订单实付对比得出）<br>7.10 部分退款；退款幂等<br>7.11 回补库存 + 退回优惠券 + 订单状态→已退款；退货退款分支：买家寄回（return_sn）→ 后台确认收货 → 退货入库 → 再打款<br>**表**：payment（trade_no 唯一）、refund（refund_type / return_sn）、product_stock_log（回补 / 退货入库流水）、coupon_user（已使用→未使用） |
+| **8. MQ 消息场景**（RocketMQ）【高频，坑全部复现】 | 8.1 支付结果通知（PAY→ORDER / MEMBER）<br>8.2 延迟消息超时关单（ORDER→ORDER）<br>8.3 秒杀削峰异步下单（SECKILL→ORDER）<br>8.4 本地消息表 tx_message<br>8.5 死信队列与重试 | 消息丢失：生产者确认 / 刷盘 / 消费 ACK 重试<br>重复消费：业务幂等（数据库唯一索引）<br>消息积压：消费扩容 + 临时 topic 转发<br>延迟消息：18 个延迟级别<br>事务消息：半消息 + 回查（本地事务与消息原子性）<br>8.5 消费失败重试 N 次仍失败 → 进 DLQ 死信队列（人工介入 / 补偿，避免无限重试阻塞消费）<br>**表**：tx_message（本地消息表：biz_id 唯一幂等、重试次数） |
+| **9. Redis 高频场景** | 9.1 Redisson 分布式锁<br>9.2 缓存穿透 / 击穿 / 雪崩防护<br>9.3 热点 key 高并发读<br>9.4 Hash 购物车存储<br>9.5 缓存预热<br>9.6 Lua 脚本原子扣减<br>9.7 Redis 过期策略应用 | 9.1 领券 / 扣库存；分布式锁实现与锁失效<br>9.2 商品详情<br>9.5 xxl-job<br>9.6 秒杀库存；Lua 原子性<br>9.7 券过期 / 在线心跳清理；过期删除策略（惰性 + 定期）<br>Redis 持久化 RDB / AOF<br>**表**：无（纯 Redis） |
+| **10. 数据统计场景**（在线人数 / UV / 签到 / 排行榜） | 10.1 实时在线人数<br>10.2 商品 PV / UV 统计<br>10.3 会员签到 / 日活<br>10.4 销量 / 秒杀排行榜<br>10.5 点赞<br>10.6 浏览足迹 | 10.1 ZSET 滑动窗口：`ZADD online_users <时间戳> <用户ID>`（请求刷新心跳），`ZCOUNT online_users (now-5min) +inf` 统计 5 分钟在线，`ZREMRANGEBYSCORE` 清理离线；另一做法 Bitmap（SETBIT + BITCOUNT，适合 UV/DAU 去重）<br>10.2 PV：`INCR page:view:{spuId}`；UV：HyperLogLog `PFADD/PFCOUNT`（12KB 亿级 UV，误差 0.81%，去重非精确）<br>10.3 Bitmap：`SETBIT sign:{memberId}:{yyyyMM} <day> 1`，`BITCOUNT` 当月天数，`BITFIELD` 连续签到<br>10.4 ZSET：`ZINCRBY rank:sales 1 skuId`，`ZREVRANGE` Top N（本质排序树）<br>10.5 Set：`SADD/SREM/SCARD` + `SISMEMBER` 判点过（天然幂等）<br>10.6 ZSET：`ZADD history:{memberId} <时间戳> <spuId>` 记录足迹，`ZREVRANGE` 最近浏览 + `ZREMRANGEBYRANK` 截断 50 条<br>为什么不用 MySQL 计数（行锁热点 / 写放大），Redis 计数器异步落库（销量回写 product_sku.sale_count）<br>**表**：纯 Redis 无新表，需持久化的计数异步落 product_sku.sale_count / product_spu.sales |
+| **11. 数据库高频场景** | 11.1 索引设计落地<br>11.2 慢 SQL 定位<br>11.3 乐观锁 vs 悲观锁对比<br>11.4 事务隔离级别演示<br>11.5 大表分页优化 | 11.1 幂等唯一键 uk_request_id / uk_trade_no / uk_order_item_id / uk_biz_id；业务编码唯一键 uk_spu_code / uk_sku_code / uk_purchase_sn；扫描组合索引 orders(status,create_time) / tx_message(status)；查询索引 member_id / spu_id / sku_id / order_id / status（coupon、seckill_session 后台列表）<br>11.2 explain 分析<br>11.3 version 扣库存 vs select for update<br>11.4 幻读 / 不可重复读<br>11.5 延迟关联<br>**表**：全业务表索引设计 |
+| **12. 高并发、安全与工程横切面** | 12.1 Sentinel 接口限流<br>12.2 接口防刷<br>12.3 幂等 token<br>12.4 Jmeter 压测复现超卖<br>12.5 图形 / 滑块验证码<br>12.6 全局异常处理器<br>12.7 统一返回封装<br>12.8 参数校验<br>12.9 链路 traceId<br>12.10 ID 生成器<br>12.11 接口文档 | 12.1 接口限流 + 热点参数限流<br>12.2 Redis 用户访问频率计数<br>12.3 防重复请求<br>12.4 验证乐观锁 / Redis 方案<br>12.5 登录注册防机器（Redis 存验证码 + 限时）<br>12.6 统一捕获业务异常返回 JSON<br>12.7 Result&lt;T&gt;<br>12.8 JSR-303 @Valid（分组校验）<br>12.9 SLF4J + Logback + MDC（日志链路追踪）<br>12.10 雪花算法<br>12.11 knife4j / springdoc-openapi（各服务 doc.html 在线调试，与「快速开始」验证入口一致） |
+| **13. 架构进阶与性能优化** | 13.1 Canal 同步缓存<br>13.2 ES 商品搜索<br>13.3 Caffeine 多级缓存<br>13.4 网关层限流鉴权<br>13.5 订单分库分表<br>13.6 SkyWalking 链路排查 | 13.1 监听 MySQL binlog<br>13.2 分词 / 高亮<br>13.3 本地缓存多级缓存<br>13.5 ShardingSphere<br>13.6 排查慢调用 |
+| **14. 秒杀场景**（mall-seckill） | 14.1 场次管理<br>14.2 秒杀商品配置<br>14.3 库存预热<br>14.4 秒杀下单（Lua 扣减 + 限购）<br>14.5 MQ 削峰异步下单<br>14.6 秒杀结果查询 | 14.1 seckill_session 场次（时间 / 状态）<br>14.2 seckill_product：seckill_price 秒杀价 / seckill_stock 秒杀库存 / limit_per_user 每人限购<br>14.3 活动开始前秒杀库存同步预热到 Redis<br>14.4 Lua 原子扣减 + 限购校验（防超卖 / 防黄牛）<br>14.5 前端快速失败 → MQ 削峰 → 异步创建订单（orders.order_type=2）<br>14.6 下单结果轮询 / 通知<br>**表**：seckill_session、seckill_product、orders（order_type=2） |
+| **15. 进销存场景**（mall-product） | 15.1 供应商管理<br>15.2 采购单创建 / 审核<br>15.3 采购入库（分批收货）<br>15.4 库存盘点 / 调整<br>15.5 退货入库<br>15.6 出入库流水对账 | 15.1 product_supplier 供应商档案（联系人 / 电话 / 状态，停用不可下采购单）<br>15.2 product_purchase 状态机（0待审核 1待收货 2部分入库 3已完成 4已取消）+ product_purchase_item 明细（采购价 / 数量 / 已入库数）<br>15.3 分批入库：received_quantity 累计 ≤ quantity，入库事务 = sku.stock 增加 + stock_log 留痕（change_type=5）；库存预警联动 5.5 触发补货<br>15.4 盘点差异调整 stock + 流水留痕（change_type=7，报损 / 报溢）<br>15.5 退款需退货 → 买家寄回 → 后台确认收货 → 退货入库（change_type=6）+ 第三方退款打款<br>15.6 stock_log 按 change_type / biz_sn 聚合对账（进货-销售-退货闭环）<br>为什么先采购入库再上架：销售库存的来源，避免「无货源直接设库存」的空中楼阁<br>**表**：product_supplier、product_purchase、product_purchase_item、product_stock_log（biz_sn / change_type） |
 
-### 6. 订单模块（mall-order）【电商核心】
+## 开发排期计划
 
-- **功能**：下单 → 预扣库存 → 创建订单 → 支付 → 超时关单；订单列表/详情/取消
-- **面试点**：**下单幂等**（request_id 唯一索引 + 前端 token 机制）；**订单状态机**（0待付款 1待发货 2待收货 3已完成 4已取消 5已退款，流转校验 + order_status_log 审计防乱改）；超时关单（RocketMQ 延迟消息，释放库存+退回券）；雪花算法订单号（时间回拨问题：时钟回拨用回拨等待/备用生成器）；订单分库分表（按 member_id 哈希，ShardingSphere）；大流量接口防刷（Sentinel）
-- **表**：orders（request_id/order_type）、order_item（快照）、order_status_log
+> 15 个场景全部落地（含第 13 项架构进阶 6 个子项、第 14 项秒杀 6 个子项与第 15 项进销存 6 个子项），按正常电商业务开发顺序（依赖驱动）排期：先地基后业务、先商品后交易、先主链路后增值项。后端以「电商技术场景清单」109 个功能点为准；前端为独立仓库（技术栈规划中），页面按「两平台功能菜单总览」与后端功能同阶段交付。周期按学习型项目每天数小时投入估算，共约 12 周。表格最后一列「进度」为跟进状态，三态取值：未开始 / 进行中 / 已完成，随开发进展手动更新（建议状态变更时同步提交一次 git 留痕）。
 
-### 7. 支付模块（mall-payment）
+| 阶段 | 建议周期 | 对应场景 | 后端交付（关键点） | 前端交付（页面） | 完成标准（里程碑） | 进度 |
+|---|---|---|---|---|---|---|
+| 0. 工程地基 | 第 1 周 | 12.6~12.11（工程横切面） | mall-common 落地：Result<T> / 全局异常 / @Valid 分组校验 / MDC traceId / 雪花 ID；接口文档（knife4j）；mall-mbg 实体生成接入；MyBatis-Plus 连通业务库 | 前端仓库脚手架（路由 / 请求封装 / 状态管理），与网关联调 | 12 服务骨架跑通，前端经网关调通首个接口 | 未开始 |
+| 1. 账号体系 | 第 2 周 | 1（1.1~1.11，积分流水随阶段 5）+ 12.5 | 买家注册登录（BCrypt + JWT 黑名单 + 图形 / 短信验证码）；修改 / 找回密码；网关 JWT 鉴权；收货地址；会员等级；积分查询（写流水随阶段 5 支付）；后台 admin_user 登录 + RBAC 五表 + @PreAuthorize | 前台登录注册 / 个人中心 / 地址管理页；后台登录 + 用户 / 角色 / 菜单管理页 | 双账号体系闭环，网关鉴权分流生效 | 未开始 |
+| 2. 商品域与进销存 | 第 3~4 周 | 2.1~2.7 + 15.1~15.4 + 15.6 + 5.1 / 5.5 + 11.1（商品 / 采购表索引） | 分类 / 品牌、SPU/SKU、上下架；供应商档案；采购单状态机（待审核 / 待收货 / 部分入库 / 已完成）；分批入库（加 stock + stock_log 留痕 change_type=5）；盘点调整（change_type=7）；库存查询 / 预警联动补货；收藏（member_favorite）；详情 Redis 缓存三防（穿透 / 击穿 / 雪崩）；xxl-job 预热；图片上传（本地存储） | 前台商品列表 / 详情页；后台商品 / 分类 / 品牌管理页 + 供应商 / 采购单 / 入库 / 库存管理页 | 进货 → 入库 → 上架链路跑通，缓存三防可演示 | 未开始 |
+| 3. 购物车与营销 | 第 5 周 | 3 + 4 | Redis Hash 购物车；结算前校验（失效标记）；券模板 / 发放 / 领券（Redisson 锁 + Lua 防超领 + SETNX 幂等）/ 锁券 / 核销 / 退回 / 过期（xxl-job 兑底）；下单优惠计算（满减 / 折扣） | 购物车页；领券中心、我的优惠券；后台券模板管理页 | 加购 → 选券闭环，超领可压测复现 | 未开始 |
+| 4. 交易核心 | 第 6~7 周 | 5.2~5.4 + 6.1~6.7 + 8.2 / 8.4 / 8.5 + 11.3 / 11.4 | 下单编排（request_id 幂等 + 乐观锁扣库存 + 锁券 + 明细快照）；订单状态机 + 流水审计；RocketMQ 延迟消息关单；取消回补；Seata AT；本地消息表 tx_message（事务消息）；死信队列（重试失败 → DLQ） | 订单确认页；订单列表 / 详情页 | 下单-关单闭环（不含支付），超卖复现并修复 | 未开始 |
+| 5. 支付与履约 | 第 8 周 | 7（7.1~7.12 支付与退款）+ 8.1（支付通知）+ 6.8 / 6.9 + 2.8（评价）+ 1.11（积分流水）+ 15.5（退货入库） | 拉起收银台；模拟支付宝 / 微信回调（trade_no 幂等）；主动查单兑底（xxl-job）；MQ 异步通知（发积分 / 短信）；退款状态机（仅退款 / 退货退款两分支）+ 库存 / 券回补联动；退货分支：买家寄回 → 退货入库（change_type=6）→ 打款；后台发货 + 确认收货 / 超时自动收货；收货后评价 | 收银台页；支付结果页；退款申请页；订单评价页；后台退款审核 + 发货页 | 支付-退款-履约-评价闭环，回调幂等可验证 | 未开始 |
+| 6. 高并发与运营数据 | 第 9~10 周 | 10 + 11.2 / 11.5 + 12.1~12.4 + 14（秒杀）+ 8.3（秒杀削峰异步下单） | 秒杀全链路（场次 / 商品配置、Redis 预热、Lua 扣减 + 限购、MQ 削峰异步下单、结果查询）；在线人数 / UV / 签到 / 排行榜 / 点赞 / 浏览足迹；Sentinel 限流防刷 + 幂等 token；explain 优化 + 延迟关联分页 | 秒杀活动页；签到 / 排行榜页；后台数据看板 + 秒杀配置页 | Jmeter 压测超卖闭环，全场景可演示 | 未开始 |
+| 7. 架构进阶 | 第 11~12 周 | 13（6 项全做） | 按零风险顺序：Caffeine 多级缓存 → SkyWalking 接入（javaagent）→ 网关限流 → ES 搜索（Java Client）→ Canal binlog 同步 → ShardingSphere 分库分表（Boot 4 适配验证，兜底逻辑分表演示） | ES 搜索联想 / 高亮 | 109 功能点全部闭环 | 未开始 |
 
-- **功能**：模拟第三方支付回调（支付宝/微信）、回调更新订单状态、MQ 异步处理支付结果
-- **面试点**：**回调幂等**（trade_no 唯一 + 状态前置校验 + 加锁）；回调接口为什么不能耗时（第三方重试机制/超时，耗时操作 MQ 异步）；消息可靠性
-- **表**：payment（trade_no 唯一）
+**排期原则：**
 
-### 8. 退款模块（mall-payment）
-
-- **功能**：申请退款 → 审核 → 第三方退款 → 回补库存 + 退回优惠券，MQ 异步通知业务更新
-- **面试点**：退款状态机（0申请中 1审核通过 2退款中 3已退款 4已拒绝）；部分退款；退款幂等
-- **表**：refund、product_stock_log（回补流水）、coupon_user（已使用→未使用）
-
-### 9. MQ 消息场景（RocketMQ）【面试高频，坑全部复现】
-
-- **贯穿场景**：下单、支付、关单、库存回滚、优惠券过期
-- **面试点**：**消息丢失**（生产者确认/刷盘/消费 ACK 重试）；**重复消费**（业务幂等：数据库唯一索引）；**消息积压**（消费扩容 + 临时 topic 转发）；延迟消息（18 个延迟级别）；事务消息（半消息 + 回查，本地事务与消息原子性）
-- **表**：tx_message（本地消息表：biz_id 唯一幂等、重试次数）
-
-### 10. Redis 高频场景
-
-- **落地**：Redisson 分布式锁（优惠券领取/库存扣减）、缓存穿透/击穿/雪崩（商品详情）、Hash 购物车、热点 key、缓存预热（xxl-job）、Lua 脚本扣库存原子、Redis 过期策略
-- **面试点**：分布式锁实现与锁失效；Lua 原子性；Redis 持久化 RDB/AOF；过期删除策略（惰性+定期）
-
-### 11. 数据统计场景（在线人数 / UV / 签到 / 排行榜）
-
-- **功能**：实时在线人数、商品浏览量 PV/UV、会员日活、连续签到、销量/秒杀排行榜、点赞
-- **面试点**：
-  - **在线人数**——ZSET 滑动窗口：`ZADD online_users <时间戳> <用户ID>`（请求时刷新心跳），统计 `ZCOUNT online_users (now-5min) +inf` 即 5 分钟活跃在线人数，`ZREMRANGEBYSCORE` 清理离线；另一种做法是 Bitmap（用户 ID 即位偏移，SETBIT + BITCOUNT，适合 UV/DAU 去重统计）
-  - **PV/UV**——PV 用 `INCR page:view:{spuId}`（计数加一）；UV 用 HyperLogLog `PFADD/PFCOUNT`（12KB 固定内存统计亿级 UV，误差 0.81%，去重但非精确）
-  - **签到**——Bitmap：`SETBIT sign:{memberId}:{yyyyMM} <day> 1`，`BITCOUNT` 当月签到天数，`BITFIELD` 求连续签到
-  - **排行榜**——ZSET：`ZINCRBY rank:sales 1 skuId` 销量榜，`ZREVRANGE` Top N，本质是排序树
-  - **点赞**——Set：`SADD/SREM/SCARD` + `SISMEMBER` 判是否点过（天然幂等）
-  - 为什么不用 MySQL 做计数器（行锁热点/写放大），Redis 计数器异步落库（销量回写 product_sku.sale_count）
-- **表**：纯 Redis 无新表，需持久化的计数异步落 product_sku.sale_count / product_spu.sales
-
-### 12. 数据库高频场景
-
-- **落地**：订单/商品/优惠券表索引设计（幂等唯一键：uk_request_id、uk_trade_no 回调幂等兜底、uk_order_item_id 防重复评价、uk_biz_id 事务消息幂等；后台扫描组合索引：orders(status,create_time) 关单扫描、tx_message(status) 补偿重发；查询索引：member_id、spu_id、sku_id、order_id）
-- 慢 SQL explain 分析；乐观锁 version 扣库存；悲观锁 select for update 对比；事务隔离级别（幻读/不可重复读）演示；大表分页优化（延迟关联）
-- **表**：全业务表索引设计
-
-### 13. 高并发与安全
-
-- **落地**：Sentinel 接口限流 + 热点参数限流；接口防刷（Redis 用户访问频率计数）；幂等 token（防重复请求）；Jmeter 压测复现超卖 → 验证乐观锁/Redis 方案
-
-### 14. 技术点速查（横切面）
-
-- 全局异常处理器（统一捕获业务异常返回 JSON）；统一返回封装 Result<T>；JSR-303 @Valid 参数校验（分组校验）；SLF4J + Logback + MDC 链路 traceId（日志链路追踪）；雪花算法 ID 生成器
-
-### 15. 扩展加分项（可选）
-
-- Canal 监听 MySQL binlog 同步缓存；ES 商品搜索（分词/高亮）；Caffeine 本地缓存多级缓存；网关层限流鉴权；订单分库分表（ShardingSphere）；SkyWalking 链路排查慢调用
+1. **依赖驱动**：上一阶段是下一阶段的输入——无账号无法加购，无商品无订单，无订单无支付
+2. **横切面先行**：阶段 0 的 Result / 异常 / traceId 是所有模块的公共地基，不先做则每写一个模块都要返工
+3. **Redis 高频（9）不单独占阶段**：7 个子项分散伴随落地——9.1 分布式锁→阶段 3（领券）/ 阶段 4（扣库存）；9.2 / 9.3 / 9.5 缓存三防与预热→阶段 2（商品详情）；9.4 Hash 购物车→阶段 3；9.6 Lua 原子扣减→阶段 3（领券）+ 阶段 6（秒杀）；9.7 过期策略→阶段 3（券过期）
+4. **数据库场景（11）不单独占阶段**：11.1 索引随各模块建表落地（阶段 2 起，含采购表）；11.3 乐观锁 vs 悲观锁与 11.4 事务隔离级别在阶段 4 扣库存 / Seata 时演示；11.2 explain 与 11.5 大表分页在阶段 6 集中验证
+5. **架构进阶（13）放最后**：不是不重要，而是其价值建立在主线跑通之上——ES 搜索依赖商品数据、Canal 依赖缓存体系、ShardingSphere 依赖订单数据
+6. **前端与后端同阶段交付**：每阶段结束前端页面即可点可用，避免「后端做完前端才开工」的断层
+7. **进度列跟进**：每阶段状态在「进度」列手动维护（未开始 / 进行中 / 已完成），状态变更时建议同步提交一次 git，便于回看进度
