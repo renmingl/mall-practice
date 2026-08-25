@@ -5,7 +5,7 @@
 --   admin_*           → 后台管理域（管理员账号 + RBAC 五表）：admin_user / admin_role / admin_menu / admin_user_role / admin_role_menu，由 mall-auth 认证权限服务持有（认证是动作无表，账号权限数据按语义域命名）
 --   product_*         → 商品域（mall-product）：category / brand / spu / sku / stock_log / comment / supplier / purchase / purchase_item（后三张为进销存域，与库存同域）
 --   orders/order_item → mall-order 订单服务（order 是 MySQL 保留字，订单表命名 orders；含 order_status_log 状态流水）
---   payment_*         → mall-payment 支付服务（payment / refund）
+--   payment_*         → mall-payment 支付服务（payment / payment_refund）
 --   coupon_*          → mall-coupon 优惠券服务（coupon / coupon_user）
 --   seckill_*         → mall-seckill 秒杀服务（seckill_session / seckill_product）
 --   tx_message        → 公共域：本地消息表（mall-common 事务消息组件，非业务模块专属）
@@ -29,7 +29,7 @@ CREATE TABLE `member` (
   `username`    VARCHAR(64)  NOT NULL COMMENT '登录账号',
   `password`    VARCHAR(128) NOT NULL COMMENT '密码（BCrypt 加密）',
   `nickname`    VARCHAR(64)  DEFAULT NULL COMMENT '昵称',
-  `phone`       VARCHAR(20)  DEFAULT NULL COMMENT '手机号',
+  `phone`       VARCHAR(20)  DEFAULT NULL COMMENT '手机号（唯一键；无手机号统一存 NULL，勿存空串）',
   `email`       VARCHAR(64)  DEFAULT NULL COMMENT '邮箱',
   `avatar`      VARCHAR(255) DEFAULT NULL COMMENT '头像地址',
   `gender`      TINYINT      NOT NULL DEFAULT 0 COMMENT '性别：0未知 1男 2女',
@@ -147,7 +147,7 @@ CREATE TABLE `orders` (
   `discount_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '其他优惠（秒杀/满减等）',
   `pay_amount`      DECIMAL(10,2) NOT NULL COMMENT '应付金额（实付）',
   `pay_type`        TINYINT       DEFAULT NULL COMMENT '支付方式：1支付宝 2微信',
-  `status`          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0待付款 1待发货 2待收货 3已完成 4已取消 5已退款',
+  `status`          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0待付款 1待发货 2待收货 3已完成 4已取消 5已退款（5=整单全额退款）',
   `receiver_name`   VARCHAR(32)   DEFAULT NULL COMMENT '收货人（下单快照）',
   `receiver_phone`  VARCHAR(20)   DEFAULT NULL COMMENT '收货电话',
   `receiver_address` VARCHAR(255) DEFAULT NULL COMMENT '收货地址（省市区+详细，拼接快照）',
@@ -198,7 +198,7 @@ CREATE TABLE `payment` (
   `pay_amount`  DECIMAL(10,2) NOT NULL COMMENT '支付金额',
   `pay_type`    TINYINT       NOT NULL COMMENT '支付方式：1支付宝 2微信',
   `trade_no`    VARCHAR(64)   DEFAULT NULL COMMENT '第三方交易流水号',
-  `status`      TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0待支付 1支付成功 2支付失败 3已退款',
+  `status`      TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0待支付 1支付成功 2支付失败 3已退款（3=整单全额）',
   `notify_time` DATETIME      DEFAULT NULL COMMENT '回调通知时间',
   `create_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -235,12 +235,12 @@ CREATE TABLE `coupon_user` (
   `coupon_id`    BIGINT   NOT NULL COMMENT '优惠券ID',
   `member_id`    BIGINT   NOT NULL COMMENT '会员ID',
   `order_id`     BIGINT   DEFAULT NULL COMMENT '核销订单ID',
-  `status`       TINYINT  NOT NULL DEFAULT 0 COMMENT '状态：0未使用 1已锁定（下单占用） 2已使用 3已过期（退款退回由2回退到0）',
+  `status`       TINYINT  NOT NULL DEFAULT 0 COMMENT '状态：0未使用 1已锁定（下单占用） 2已使用 3已过期（取消/超时关单由1回退到0，退款退回由2回退到0；退回时校验券有效期，已过期则置3）',
   `receive_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '领取时间',
   `lock_time`    DATETIME DEFAULT NULL COMMENT '锁定时间（下单占用）',
   `use_time`     DATETIME DEFAULT NULL COMMENT '使用时间',
   PRIMARY KEY (`id`),
-  KEY `idx_member_id` (`member_id`),
+  KEY `idx_member_id_status` (`member_id`, `status`),
   KEY `idx_coupon_id` (`coupon_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户优惠券领取/使用记录表';
 
@@ -283,8 +283,8 @@ CREATE TABLE `product_stock_log` (
   `id`           BIGINT      NOT NULL AUTO_INCREMENT COMMENT '流水ID',
   `sku_id`       BIGINT      NOT NULL COMMENT 'SKU ID',
   `biz_sn`      VARCHAR(64) DEFAULT NULL COMMENT '业务单号（订单号 / 采购单号 / 退款单号）',
-  `change_type`  TINYINT     NOT NULL COMMENT '变动类型：1下单扣减 2取消回补 3退款回补 4秒杀扣减 5采购入库 6退货入库 7盘点调整 8人工调整',
-  `change_count` INT         NOT NULL COMMENT '变动数量（正数扣减，负数回补）',
+  `change_type`  TINYINT     NOT NULL COMMENT '变动类型：1下单扣减 2取消回补 3退款回补 4秒杀扣减 5采购入库 6退货入库 7盘点调整 8人工调整 9秒杀回补',
+  `change_count` INT         NOT NULL COMMENT '变动数量（正数增加、负数减少：入库为正、扣减为负，业务方向看 change_type）',
   `stock_before` INT         NOT NULL COMMENT '变动前库存',
   `stock_after`  INT         NOT NULL COMMENT '变动后库存',
   `create_time`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -330,21 +330,23 @@ CREATE TABLE `order_status_log` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单状态流转日志表（状态机审计，防乱改状态）';
 
 -- ------------------------------------------------------------
--- 支付域补充：退款（mall-payment）
+-- 支付域补充：退款（mall-payment，表名 payment_refund 取支付域前缀）
 -- ------------------------------------------------------------
-CREATE TABLE `refund` (
+CREATE TABLE `payment_refund` (
   `id`            BIGINT        NOT NULL AUTO_INCREMENT COMMENT '退款单ID',
   `refund_sn`     VARCHAR(64)   NOT NULL COMMENT '退款单号',
   `order_id`      BIGINT        NOT NULL COMMENT '订单ID',
   `order_sn`      VARCHAR(64)   NOT NULL COMMENT '订单号',
   `payment_sn`    VARCHAR(64)   DEFAULT NULL COMMENT '支付流水号',
   `member_id`     BIGINT        NOT NULL COMMENT '会员ID',
-  `refund_amount` DECIMAL(10,2) NOT NULL COMMENT '退款金额',
+  `refund_amount` DECIMAL(10,2) NOT NULL COMMENT '退款金额（整单退款，等于订单实付）',
   `reason`        VARCHAR(255)  DEFAULT NULL COMMENT '退款原因',
-  `refund_type`   TINYINT       NOT NULL DEFAULT 1 COMMENT '退款类型：1仅退款 2退货退款（全额/部分由 refund_amount 与订单实付对比得出）',
+  `refund_type`   TINYINT       NOT NULL DEFAULT 1 COMMENT '退款类型：1仅退款 2退货退款（整单退款）',
   `return_company` VARCHAR(32)  DEFAULT NULL COMMENT '退货物流公司（退货退款用）',
   `return_sn`     VARCHAR(64)   DEFAULT NULL COMMENT '退货物流单号（退货退款用）',
-  `status`        TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0申请中 1审核通过 2退款中 3已退款 4已拒绝',
+  `status`        TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0申请中 1审核通过 2退货中 3退款中 4已退款 5已拒绝（仅退款跳过 2；第三方退款失败停留 3，重试/人工介入）',
+  `audit_by`      VARCHAR(64)   DEFAULT NULL COMMENT '审核人（后台审核退款申请）',
+  `audit_time`    DATETIME      DEFAULT NULL COMMENT '审核时间',
   `apply_time`    DATETIME      DEFAULT NULL COMMENT '申请时间',
   `refund_time`   DATETIME      DEFAULT NULL COMMENT '退款到账时间',
   `create_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -352,8 +354,9 @@ CREATE TABLE `refund` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_refund_sn` (`refund_sn`),
   KEY `idx_order_id` (`order_id`),
-  KEY `idx_member_id` (`member_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='退款单表（退款状态机；退款成功后回补库存、退回优惠券）';
+  KEY `idx_member_id` (`member_id`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='退款单表（整单退款状态机；退款成功后回补库存、退回优惠券——退券校验有效期，过期置已过期）';
 
 -- ------------------------------------------------------------
 -- 会员域补充（mall-member）
@@ -486,6 +489,8 @@ CREATE TABLE `product_purchase` (
   `supplier_id`  BIGINT        NOT NULL COMMENT '供应商ID',
   `total_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT '采购总金额（采购价 x 数量）',
   `status`       TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0待审核 1待收货 2部分入库 3已完成 4已取消',
+  `audit_by`     VARCHAR(64)  DEFAULT NULL COMMENT '审核人',
+  `audit_time`   DATETIME     DEFAULT NULL COMMENT '审核时间',
   `create_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
