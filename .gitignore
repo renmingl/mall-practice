@@ -37,3 +37,4 @@ target/
 # Node.js 前端（各前端模块自带 .gitignore，此处兜底）
 node_modules/
 dist/
+*.tsbuildinfo

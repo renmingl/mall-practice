@@ -7,9 +7,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * 会员服务启动类（端口 8400）
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
-@MapperScan("com.mall.mbg.mapper")
+@MapperScan({"com.mall.mbg.mapper", "com.mall.member.mapper"})
 @SpringBootApplication
 public class MallMemberApplication {
 

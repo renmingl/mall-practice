@@ -10,7 +10,7 @@ import java.io.Serializable;
  * 所有 Controller 接口一律返回本结构：{@code code} 业务码 + {@code message} 提示 + {@code data} 数据，
  * 前端（或网关）按 code 判断成功与否，与 HTTP 状态码解耦
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Data
 public class Result<T> implements Serializable {

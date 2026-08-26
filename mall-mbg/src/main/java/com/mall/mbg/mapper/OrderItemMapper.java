@@ -7,7 +7,7 @@ import com.mall.mbg.entity.OrderItem;
  * 订单项表 Mapper 接口
  *
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 public interface OrderItemMapper extends BaseMapper<OrderItem> {
 

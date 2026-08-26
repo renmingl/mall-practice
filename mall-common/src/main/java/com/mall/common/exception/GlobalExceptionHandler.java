@@ -4,6 +4,7 @@ import com.mall.common.result.Result;
 import com.mall.common.result.ResultCode;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -20,7 +21,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * 注意：本类位于 mall-common（仅依赖 spring-web，不引 webmvc），NoResourceFoundException（404）等
  * webmvc 专属异常由各服务自行扩展处理。
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Slf4j
 @RestControllerAdvice
@@ -93,6 +94,13 @@ public class GlobalExceptionHandler {
     public Result<Void> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException e) {
         log.warn("Content-Type 不支持：{}", e.getContentType());
         return Result.error(ResultCode.BAD_REQUEST.getCode(), "不支持的 Content-Type");
+    }
+
+    /** 数据库唯一键冲突（并发注册/重复提交触发 uk_* 约束）：转为业务提示，避免兜底 500 */
+    @ExceptionHandler(DuplicateKeyException.class)
+    public Result<Void> handleDuplicateKey(DuplicateKeyException e) {
+        log.warn("唯一键冲突：{}", e.getMessage());
+        return Result.error(ResultCode.BAD_REQUEST.getCode(), "数据已存在，请勿重复提交");
     }
 
     /** 兜底：未预期异常，统一 500 且不泄露内部细节 */

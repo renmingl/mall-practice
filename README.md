@@ -65,6 +65,8 @@ Get-Content .\sql\mall.sql -Raw -Encoding UTF8 | docker exec -i mall-mysql mysql
 > 账号说明：中间件账密（Redis/Nacos/XXL-Job）统一在仓库根目录 `.env` 中配置（`.env` 不入库，模板见 `.env.example`；MySQL root 密码已写入初始化后的数据目录，compose 未配置密码变量，全新环境首次初始化需临时设置 `MYSQL_ROOT_PASSWORD`，见 `.env.example` 注释）。变更联动：MySQL 密码变更需同步 `.env` 中 `XXL_JOB_DB_PASSWORD`（xxl-job 连接用）；Redis 密码变更需同步各模块 application.yml 的 redis.password。
 >
 > 两个脚本均为一次性初始化脚本（建表语句不带 IF NOT EXISTS），重复执行会报"表已存在"，属正常现象，可忽略。
+>
+> **业务库自带种子数据**：mall.sql 导入后自动写入前后台初始化数据——后台超级管理员与前台演示买家统一账号 **admin / admin123**（后台角色 SUPER_ADMIN，拥有全部菜单权限，登录后权限标识为 `*`；两端分属独立表，互不影响），登录入口见「第 5 步」；商城也支持自行注册新账号。
 
 ### 第 3 步：启动中间件
 
@@ -188,6 +190,15 @@ npm run dev    # 开发模式，热更新；保持终端运行
 - Nacos 服务列表应看到全部已启动服务
 - 管理后台前端（mall-web-admin）：http://localhost:5173（/api 代理到网关 8080）
 - 前台商城前端（mall-web-portal）：http://localhost:5174（/api 代理到网关 8080）
+
+前后台统一默认账号（同账密、好记；种子数据随 mall.sql 首次导入自动生效）：
+
+| 端 | 地址 | 账号 | 密码 | 说明 |
+|---|---|---|---|---|
+| 管理后台 | http://localhost:5173 | admin | admin123 | 超级管理员（RBAC 全部权限） |
+| 前台商城 | http://localhost:5174 | admin | admin123 | 演示买家（双账号体系分表，两处 admin 互不影响） |
+
+> 两端登录均需图形验证码；短信验证码为开发期模拟（Redis 存码，接口直接返回）。商城也可自行注册新账号（需手机号，注册即登录）。
 
 ### （进阶）Docker 独立部署（规划中，待业务代码完成后补充）
 
@@ -796,11 +807,12 @@ graph TB
 
     PORTAL -.->|调用契约 待引入| API
     ADMIN -.->|调用契约 待引入| API
+    AUTH -->|调用契约 已引入| API
     ORDER -.->|调用+实现 待引入| API
     PRODUCT -.->|实现契约 待引入| API
     CART -.->|实现契约 待引入| API
     SEARCH -.->|实现契约 待引入| API
-    MEMBER -.->|实现契约 待引入| API
+    MEMBER -->|实现契约 已引入| API
     COUPON -.->|实现契约 待引入| API
     SECKILL -.->|实现契约 待引入| API
     PAY -.->|实现契约 待引入| API
@@ -827,7 +839,7 @@ graph TB
 - mall-gateway 零依赖（图中无任何边，属正常）：网关是 WebFlux 反应式栈，mall-common 含 web 注解不兼容
 - mall-cart（纯 Redis）/ mall-search（ES 索引）/ 聚合层（portal/admin）不连 MySQL，因此无 mall-mbg 依赖
 - Feign / Dubbo 契约双方共享契约模块：调用方拿接口、提供方实现接口（各自依赖一份，并非服务间直接依赖）
-- 阶段 0 已引入 mall-mbg：7 个有表服务（auth/member/product/order/payment/coupon/seckill）编译期依赖实体/Mapper；mall-api / mall-dubbo-api 仍无人依赖（写业务代码时按上图虚线引入）
+- 阶段 1 已引入 mall-mbg：7 个有表服务（auth/member/product/order/payment/coupon/seckill）编译期依赖实体/Mapper；阶段 2 已引入 mall-api：auth / member 买家认证 Feign 契约（auth 调用、member 实现）；mall-dubbo-api 仍无人依赖（第三阶段引入）
 - mall-api 已内置 openfeign 依赖（服务依赖 mall-api 即获得 Feign 能力）；mall-dubbo-api 当前为空模块（连 Dubbo 依赖都随第三阶段一起引入）
 
 ## 技术栈
@@ -873,7 +885,7 @@ graph TB
 | Spring Security | 7.x | 认证（登录/token 校验）+ 授权（角色权限） |
 | JWT | - | 无状态令牌，网关校验、服务间传递用户信息 |
 | MyBatis-Plus | 3.5.17 | ORM（必须用 Boot 4 专属 starter：mybatis-plus-spring-boot4-starter，3.5.13 起支持 Boot 4） |
-| springdoc-openapi | 3.1.0（Knife4j 未适配 Boot 4，已改用 springdoc 原生 UI） | 接口文档（各服务 doc.html 在线调试，阶段 0 已落地） |
+| springdoc-openapi | 3.1.0（Knife4j 未适配 Boot 4，已改用 springdoc 原生 UI） | 接口文档（各服务 doc.html 在线调试，阶段 1 已落地） |
 | JUnit 5 + Mockito | 最新版 | 单元测试（各模块 src/test 内，不建独立测试模块）；全链路联调用 springdoc（doc.html）页面手动验证 |
 | Logback + SLF4J | 1.5.x（Boot 4 内置 spring-boot-starter-logging 默认日志栈，无需额外依赖） | 日志框架：控制台 + 滚动文件输出、MDC traceId 跨服务串链（见「日志方案」） |
 
@@ -884,7 +896,7 @@ graph TB
 | mall-web-admin | 管理后台 | Vue 3.5 + TypeScript + Vite 6 + Pinia + Element Plus | Nginx 独立镜像（开发端口 5173） |
 | mall-web-portal | 前台商城 | Vue 3.5 + TypeScript + Vite 6 + Pinia + Vant | Nginx 独立镜像（开发端口 5174） |
 
-> 前端两个端为仓库内 npm 模块（mall-web-admin / mall-web-portal），与后端 16 个 Maven 模块独立构建、独立部署；阶段 0 已建立脚手架（路由 / 请求封装 / 状态管理），开发期经 Vite 代理 `/api` → 网关 8080 与后端联调，页面随各阶段同步交付（见「开发排期计划」）。
+> 前端两个端为仓库内 npm 模块（mall-web-admin / mall-web-portal），与后端 16 个 Maven 模块独立构建、独立部署；阶段 1 已建立脚手架（路由 / 请求封装 / 状态管理），阶段 2 已交付登录 / 注册 / 个人中心 / 地址管理 / 后台登录 / 用户角色菜单管理页，开发期经 Vite 代理 `/api` → 网关 8080 与后端联调，其余页面随各阶段同步交付（见「开发排期计划」）。
 
 ### 依赖引入状态（骨架 vs 业务开发阶段）
 
@@ -893,18 +905,18 @@ graph TB
 | 依赖 | 当前状态 | 归属模块 | 引入时机 |
 |---|---|---|---|
 | Spring Web / Actuator / Nacos 注册发现 / Lombok | ✅ 已引入 | 全部 12 服务 | - |
-| Logback + SLF4J（日志） | ✅ 已内置（spring-boot-starter-logging 随 starter 自动引入，无需显式声明） | 全部服务 | 阶段 0 落地日志配置（滚动文件 + MDC traceId） |
-| OpenFeign + LoadBalancer | ✅ 已引入 | mall-portal / mall-admin 各自直接引入（mall-api 内置 openfeign，后续契约模块被依赖后自动获得） | - |
+| Logback + SLF4J（日志） | ✅ 已内置（spring-boot-starter-logging 随 starter 自动引入，无需显式声明） | 全部服务 | 阶段 1 落地日志配置（滚动文件 + MDC traceId） |
+| OpenFeign + LoadBalancer | ✅ 已引入 | mall-portal / mall-admin 各自直接引入；mall-auth 经 mall-api（内置 openfeign）调 mall-member 内部契约 | - |
 | MyBatis-Plus + MySQL 驱动 | ✅ 已引入 | auth / member / product / order / payment / coupon / seckill 共 7 个 | - |
 | Redis（spring-data-redis） | ✅ 已引入 | mall-common（其余服务经 common 传递获得；gateway 不依赖 common 故无） | - |
 | Redisson 分布式锁 | ⏳ 待引入 | mall-common | 优惠券/库存/秒杀场景（锁） |
 | RocketMQ 客户端 | ⏳ 待引入 | mall-common（封装）+ order/payment/seckill/member（使用；member 消费支付结果发积分） | MQ 消息场景 |
-| Spring Security + JWT | ⏳ 待引入 | mall-auth（登录/签发/校验）+ mall-gateway（过滤器校验） | 用户模块场景 |
+| Spring Security + JWT | ✅ 已引入 | mall-auth（登录/签发/校验 + @PreAuthorize 按钮级 RBAC）+ mall-gateway（AuthGlobalFilter 经 WebClient 调 auth 校验，网关自身无 Security/Redis 依赖） | 阶段 2 落地 |
 | Sentinel 限流 | ⏳ 待引入 | 网关 / 秒杀 / 高频接口所在服务 | 高并发、安全与工程横切面（12.x） |
 | Seata 客户端 | ⏳ 待引入 | order（@GlobalTransactional 发起方）及下游参与方 | 分布式事务场景 |
 | XXL-Job core | ⏳ 待引入 | order（关单扫描）/ seckill（秒杀预热） | 订单/秒杀场景 |
 | Elasticsearch 客户端 | ⏳ 待引入（Boot 4 兼容版待验证） | mall-search | 搜索场景 |
-| 接口文档 springdoc-openapi | ✅ 已引入（3.1.0，Boot 4 适配；Knife4j 未适配已弃用） | 全部 12 服务（Servlet 用 webmvc-ui，网关用 webflux-ui），doc.html 已验证 | 阶段 0 落地 |
+| 接口文档 springdoc-openapi | ✅ 已引入（3.1.0，Boot 4 适配；Knife4j 未适配已弃用） | 全部 12 服务（Servlet 用 webmvc-ui，网关用 webflux-ui），doc.html 已验证 | 阶段 1 落地 |
 | Apache Dubbo 3 | ⏳ 待引入（Boot 4 适配待官方支持） | order + product/coupon/payment/seckill + mall-dubbo-api | 演进第三阶段 |
 | SkyWalking | 无需 pom 依赖（javaagent 无侵入） | 全部服务 | 链路追踪演示 |
 
@@ -955,13 +967,15 @@ graph TB
 
 | 模块 | 职责 |
 |---|---|
-| mall-common | 统一返回结构（Result<T>）、全局异常、工具类、雪花 ID、MDC traceId 工具、Logback 日志配置、Redis 配置（阶段 0 已实现）；RocketMQ 消息封装、存储封装为规划职责（rocketmq/oss 依赖待对应章节引入） |
-| mall-mbg | MyBatis-Plus Generator 代码生成，产出实体类与 Mapper（阶段 0 已接入：mall 库 28 表 entity/mapper/xml 已生成） |
+| mall-common | 统一返回结构（Result<T>）、全局异常、工具类、雪花 ID、MDC traceId 工具、Logback 日志配置、Redis 配置（阶段 1 已实现）；RocketMQ 消息封装、存储封装为规划职责（rocketmq/oss 依赖待对应章节引入） |
+| mall-mbg | MyBatis-Plus Generator 代码生成，产出实体类与 Mapper（阶段 1 已接入：mall 库 28 表 entity/mapper/xml 已生成） |
 | mall-api / mall-dubbo-api | 服务间调用接口契约，Feign 与 Dubbo 各自独立定义（mall-api 已内置 openfeign 依赖；mall-dubbo-api 当前空模块，Dubbo 依赖随第三阶段一起引入） |
 
 > **「平台 ≠ 服务」辨析**：mall-admin / mall-portal 是平台聚合层（只管页面数据组装与流程编排，无表）；mall-product / mall-order 等是业务数据服务（拥有表，被两个平台共同调用）——mall-product 不是「管理后台」，mall-admin 也不是「数据服务」。表名前缀按数据语义域命名（product_* 商品域归 mall-product、admin_* 后台管理域归 mall-auth 持有）：admin_* 是后台账号权限数据，由认证权限服务管而非聚合层建表；买家账号复用 member，故不存在 portal_ 前缀表（平台数据边界见业务篇「业务表设计总览」）。
 
-> 阶段 0 说明：12 个服务模块已含启动类 + application.yml（可直接启动并注册 Nacos）+ 骨架验证接口（/api/common/ping|error|trace）；mall-common 已实现统一返回/全局异常/雪花 ID/traceId 工具/日志配置；mall-mbg 已生成 28 表实体与 Mapper（7 个有表服务已接入）；全部业务代码（Service/Controller）按业务篇「电商技术场景清单」逐场景实现，依赖引入时机见「技术栈 → 依赖引入状态」小节。
+> 阶段 1 说明：12 个服务模块已含启动类 + application.yml（可直接启动并注册 Nacos）+ 骨架验证接口（/api/common/ping|error|trace）；mall-common 已实现统一返回/全局异常/雪花 ID/traceId 工具/日志配置；mall-mbg 已生成 28 表实体与 Mapper（7 个有表服务已接入）；全部业务代码（Service/Controller）按业务篇「电商技术场景清单」逐场景实现，依赖引入时机见「技术栈 → 依赖引入状态」小节。
+>
+> 阶段 2 说明：双账号体系已闭环——买家注册 / 登录（图形 + 模拟短信验证码、BCrypt、JWT 双令牌 + Redis 黑名单 + refresh 轮换）、找回密码、收货地址 / 个人资料 / 积分查询；后台 admin 登录 + RBAC 五表（用户 / 角色 / 菜单）+ 按钮级 @PreAuthorize；网关集中鉴权（透传 X-User-Id / X-User-Type / X-User-Perms）；管理动作即时生效：禁用 / 删除 / 重置密码 / 角色权限变更均触发用户全部令牌失效（踢下线）。后台管理接口当前由 mall-auth 直接提供（admin_* 数据归属 auth），mall-admin 聚合层随后续阶段接管。
 
 ## 服务间通信
 
@@ -991,8 +1005,8 @@ graph TB
 - **门面 + 实现**：SLF4J 门面 + Logback 实现（Spring Boot 4 内置 `spring-boot-starter-logging`，版本 1.5.x 由 Boot BOM 管理，无需额外依赖）；代码统一 `@Slf4j` 注解，不引入 log4j2 避免门面冲突
 - **输出策略**：开发期控制台；运行期滚动文件（INFO / ERROR 分离，按天滚动 + 保留 15 天，各服务独立日志文件）
 - **链路串联（核心）**：网关生成 traceId（无则 UUID）→ 存入 MDC → Feign 经 `X-Trace-Id` 请求头、Dubbo 经 RpcContext attachment、MQ 经消息 properties 透传 → 下游过滤器取出写回 MDC → 日志 pattern 统一携带 `[traceId:%X{traceId}]`——跨服务排查时 grep 同一 traceId 即可串起整条调用链
-- **异步注意**：线程池 / MQ 消费线程不继承父线程 MDC，提交任务时需手动透传 traceId（mall-common 提供包装工具，阶段 0 落地）
-- **与 SkyWalking 互补**：SkyWalking（阶段 7 javaagent 接入）负责调用链可视化与性能分析，应用日志负责业务明细，两者经 traceId 关联互不替代
+- **异步注意**：线程池 / MQ 消费线程不继承父线程 MDC，提交任务时需手动透传 traceId（mall-common 提供包装工具，阶段 1 落地）
+- **与 SkyWalking 互补**：SkyWalking（阶段 8 javaagent 接入）负责调用链可视化与性能分析，应用日志负责业务明细，两者经 traceId 关联互不替代
 - **脱敏**：手机号 / 密码 / token 不打印全量内容
 
 ## 搭建踩坑记录（均已修复，供避坑参考）
@@ -1132,7 +1146,7 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 
 | 场景（模块） | 业务功能点 | 技术点（含落地表） |
 | --- | --- | --- |
-| **1. 用户模块**（mall-member / mall-auth） | 1.1 买家注册 / 登录<br>1.2 JWT 签发 / 刷新<br>1.3 网关 JWT 鉴权<br>1.4 个人资料修改<br>1.5 会员等级权益<br>1.6 收货地址管理<br>1.7 后台管理员登录<br>1.8 RBAC 权限管理<br>1.9 接口权限校验<br>1.10 修改 / 找回密码<br>1.11 积分查询与流水 | 1.1 BCrypt 加密（加盐 / 慢哈希，不用 MD5）；买家登录：portal→auth 签发 JWT，auth 经 HTTP 调 member 内部校验接口核对密码（member 表数据归属不动）<br>1.2 JWT 无状态 vs 无法主动失效 → Redis 黑名单（auth 查 Redis 校验，网关经 WebClient 调 auth 透传结果；gateway 无 Redis 依赖故不自查）<br>1.3 网关鉴权 vs 业务服务鉴权区别<br>1.5 member.level：折扣 / 免运费 / 积分倍率；买家侧"权限"= 账号状态（禁用 / 拉黑）+ 等级权益，为什么不用 RBAC（扁平权益 vs 树形权限）<br>1.7 前后台账号分离：人员属性 / 密码策略 / 登录入口不同（member 状态+等级权益模型 vs admin_user RBAC 权限模型）<br>1.8 RBAC 五表（用户-角色-菜单），权限粒度到按钮<br>1.9 @PreAuthorize 校验 perms<br>1.10 短信 / 邮箱验证码（Redis 存码 + 过期）<br>1.11 member.points 余额 + member_point_log 流水（支付返积分 / 退款扣回）<br>**表**：member（level / points）、member_address、member_point_log、admin_user / admin_role / admin_menu / admin_user_role / admin_role_menu |
+| **1. 用户模块**（mall-member / mall-auth） | 1.1 买家注册 / 登录<br>1.2 JWT 签发 / 刷新<br>1.3 网关 JWT 鉴权<br>1.4 个人资料修改<br>1.5 会员等级权益<br>1.6 收货地址管理<br>1.7 后台管理员登录<br>1.8 RBAC 权限管理<br>1.9 接口权限校验<br>1.10 修改 / 找回密码<br>1.11 积分查询与流水 | 1.1 BCrypt 加密（加盐 / 慢哈希，不用 MD5）；买家登录：portal→auth 签发 JWT，auth 经 HTTP 调 member 内部校验接口核对密码（member 表数据归属不动）<br>1.2 JWT 无状态 vs 无法主动失效 → Redis 黑名单 + refresh 轮换防重放 + 用户令牌跟踪集（禁用/重置密码/角色变更踢下线即时生效；auth 查 Redis 校验，网关经 WebClient 调 auth 透传结果；gateway 无 Redis 依赖故不自查）<br>1.3 网关鉴权 vs 业务服务鉴权区别；业务服务信任网关透传的 X-User-Id 等头（生产需网络隔离，禁止业务端口对外暴露）<br>1.5 member.level：折扣 / 免运费 / 积分倍率；买家侧"权限"= 账号状态（禁用 / 拉黑）+ 等级权益，为什么不用 RBAC（扁平权益 vs 树形权限）<br>1.7 前后台账号分离：人员属性 / 密码策略 / 登录入口不同（member 状态+等级权益模型 vs admin_user RBAC 权限模型）<br>1.8 RBAC 五表（用户-角色-菜单），权限粒度到按钮<br>1.9 @PreAuthorize 校验 perms<br>1.10 图形 + 短信验证码（模拟短信，Redis 存码 + 过期）<br>1.11 member.points 余额 + member_point_log 流水（支付返积分 / 退款扣回）<br>**表**：member（level / points）、member_address、member_point_log、admin_user / admin_role / admin_menu / admin_user_role / admin_role_menu |
 | **2. 商品模块**（mall-product） | 2.1 商品分类 / 品牌管理<br>2.2 SPU / SKU 模型维护<br>2.3 商品列表 / 详情查询<br>2.4 商品详情 Redis 缓存<br>2.5 缓存预热<br>2.6 商品图片上传<br>2.7 商品收藏 / 取消收藏<br>2.8 商品评价（打分 / 图文，确认收货后） | 2.1 分类树<br>2.2 规格、价格、上下架；SPU/SKU 模型设计（核心）<br>2.4 穿透（布隆过滤器 / 缓存空值）；击穿（互斥锁 / 逻辑过期）；雪崩（TTL 随机偏移）<br>DB 与 Redis 双写一致性（先更 DB 再删缓存 / 延迟双删 / Canal）；热点 key 高并发读<br>2.5 xxl-job 定时加载热点商品<br>2.6 本地文件存储默认，OSS 可切换<br>2.7 member_favorite 收藏列表（member_id + spu_id 唯一防重复）<br>2.8 product_comment 评价（uk_order_item_id 唯一键防重复评价；后台审核 / 回复 reply / 隐藏）<br>**表**：product_category / product_brand / product_spu / product_sku、member_favorite、product_comment |
 | **3. 购物车模块**（mall-cart） | 3.1 加入购物车<br>3.2 修改数量 / 删除条目 / 勾选结算<br>3.3 购物车列表查询<br>3.4 下单成功后清理已结算条目<br>3.5 结算前校验（下架 / 库存 / 价格变更） | 3.1 Redis Hash：key=cart:{memberId}，field=skuId<br>购物车为什么放 Redis（读写频繁 / 非强一致）；学习项目购物车不持久化（Redis 故障丢购物车可接受，DB 同步方案为可选扩展）<br>3.5 失效条目标记 + 结算时提示，避免下单时才报错<br>**表**：无（纯 Redis） |
 | **4. 优惠券模块**（mall-coupon） | 4.1 券模板创建 / 发行<br>4.2 用户领券<br>4.3 下单锁券<br>4.4 支付成功核销<br>4.5 取消订单 / 退款退回<br>4.6 过期作废<br>4.7 下单优惠计算（满减 / 折扣） | 4.1 总量 total_count、每人限领 per_limit<br>4.2 防超领：Redisson 分布式锁 + Lua 原子扣减（received_count < total_count）；领取幂等：Redis SETNX + 分布式锁（per_limit 可 >1，无法唯一键兜底）<br>4.3~4.5 coupon_user 状态机：未使用→已锁定→已使用，取消 / 退款退回→未使用（退回时校验券有效期，已过期则置已过期）<br>4.6 Redis 过期 key + xxl-job 定时兜底<br>Redisson：可重入 / 锁续期 / 锁失效<br>4.7 按 threshold 满减门槛 / amount 折扣率计算优惠金额；全场券（无品类 / 单品维度，简化设计）<br>**表**：coupon（per_limit）、coupon_user（0未使用 1已锁定 2已使用 3已过期） |
@@ -1154,21 +1168,21 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 
 | 阶段 | 建议周期 | 对应场景 | 后端交付（关键点） | 前端交付（页面） | 完成标准（里程碑） | 进度 |
 |---|---|---|---|---|---|---|
-| 0. 工程地基 | 第 1 周 | 12.6~12.11（工程横切面） | mall-common 落地：Result<T> / 全局异常 / @Valid 分组校验 / 日志（Logback 滚动文件 + MDC traceId）/ 雪花 ID；接口文档（springdoc 3.1.0，12 服务 doc.html）；mall-mbg 实体生成接入（28 表）；MyBatis-Plus 连通业务库；网关 traceId 过滤器 | 前端脚手架（mall-web-admin / mall-web-portal：路由 / 请求封装 / 状态管理），与网关联调 | 12 服务骨架跑通，前端经网关调通首个接口 | 已完成 |
-| 1. 账号体系 | 第 2 周 | 1（1.1~1.11，积分流水随阶段 5）+ 12.5 | 买家注册登录（BCrypt + JWT 黑名单 + 图形 / 短信验证码）；修改 / 找回密码；网关 JWT 鉴权；收货地址；会员等级；积分查询（写流水随阶段 5 支付）；后台 admin_user 登录 + RBAC 五表 + @PreAuthorize | 前台登录注册 / 个人中心 / 地址管理页；后台登录 + 用户 / 角色 / 菜单管理页 | 双账号体系闭环，网关鉴权分流生效 | 未开始 |
-| 2. 商品域与进销存 | 第 3~4 周 | 2.1~2.7 + 15.1~15.4 + 15.6 + 5.1 / 5.5 + 11.1（商品 / 采购表索引） | 分类 / 品牌、SPU/SKU、上下架；供应商档案；采购单状态机（待审核 / 待收货 / 部分入库 / 已完成）；分批入库（加 stock + stock_log 留痕 change_type=5）；盘点调整（change_type=7）；库存查询 / 预警联动补货；收藏（member_favorite）；详情 Redis 缓存三防（穿透 / 击穿 / 雪崩）；xxl-job 预热；图片上传（本地存储） | 前台商品列表 / 详情页；后台商品 / 分类 / 品牌管理页 + 供应商 / 采购单 / 入库 / 库存管理页 | 进货 → 入库 → 上架链路跑通，缓存三防可演示 | 未开始 |
-| 3. 购物车与营销 | 第 5 周 | 3 + 4 | Redis Hash 购物车；结算前校验（失效标记）；券模板 / 发放 / 领券（Redisson 锁 + Lua 防超领 + SETNX 幂等）/ 锁券 / 核销 / 退回 / 过期（xxl-job 兜底）；下单优惠计算（满减 / 折扣） | 购物车页；领券中心、我的优惠券；后台券模板管理页 | 加购 → 选券闭环，超领可压测复现 | 未开始 |
-| 4. 交易核心 | 第 6~7 周 | 5.2~5.4 + 6.1~6.7 + 8.2 / 8.4 / 8.5 + 11.3 / 11.4 | 下单编排（request_id 幂等 + 乐观锁扣库存 + 锁券 + 明细快照）；订单状态机 + 流水审计；RocketMQ 延迟消息关单；取消回补；Seata AT；本地消息表 tx_message（事务消息）；死信队列（重试失败 → DLQ） | 订单确认页；订单列表 / 详情页 | 下单-关单闭环（不含支付），超卖复现并修复 | 未开始 |
-| 5. 支付与履约 | 第 8 周 | 7（7.1~7.12 支付与退款）+ 8.1（支付通知）+ 6.8 / 6.9 + 2.8（评价）+ 1.11（积分流水）+ 15.5（退货入库） | 拉起收银台；模拟支付宝 / 微信回调（trade_no 幂等）；主动查单兜底（xxl-job）；MQ 异步通知（发积分 / 短信）；退款状态机（仅退款 / 退货退款两分支）+ 库存 / 券回补联动；退货分支：买家寄回 → 退货入库（change_type=6）→ 打款；后台发货 + 确认收货 / 超时自动收货；收货后评价 | 收银台页；支付结果页；退款申请页；订单评价页；后台退款审核 + 发货页 | 支付-退款-履约-评价闭环，回调幂等可验证 | 未开始 |
-| 6. 高并发与运营数据 | 第 9~10 周 | 10 + 11.2 / 11.5 + 12.1~12.4 + 14（秒杀）+ 8.3（秒杀削峰异步下单） | 秒杀全链路（场次 / 商品配置、Redis 预热、Lua 扣减 + 限购、MQ 削峰异步下单、结果查询）；在线人数 / UV / 签到 / 排行榜 / 点赞 / 浏览足迹；Sentinel 限流防刷 + 幂等 token；explain 优化 + 延迟关联分页 | 秒杀活动页；签到 / 排行榜页；后台数据看板 + 秒杀配置页 | Jmeter 压测超卖闭环，全场景可演示 | 未开始 |
-| 7. 架构进阶 | 第 11~12 周 | 13（6 项全做） | 按零风险顺序：Caffeine 多级缓存 → SkyWalking 接入（javaagent）→ 网关限流 → ES 搜索（Java Client）→ Canal binlog 同步 → ShardingSphere 分库分表（Boot 4 适配验证，兜底逻辑分表演示） | ES 搜索联想 / 高亮 | 109 功能点全部闭环 | 未开始 |
+| 1. 工程地基 | 第 1 周 | 12.6~12.11（工程横切面） | mall-common 落地：Result<T> / 全局异常 / @Valid 分组校验 / 日志（Logback 滚动文件 + MDC traceId）/ 雪花 ID；接口文档（springdoc 3.1.0，12 服务 doc.html）；mall-mbg 实体生成接入（28 表）；MyBatis-Plus 连通业务库；网关 traceId 过滤器 | 前端脚手架（mall-web-admin / mall-web-portal：路由 / 请求封装 / 状态管理），与网关联调 | 12 服务骨架跑通，前端经网关调通首个接口 | 已完成 |
+| 2. 账号体系 | 第 2 周 | 1（1.1~1.11，积分流水随阶段 6）+ 12.5 | 买家注册登录（BCrypt + JWT 黑名单 + 图形 / 短信验证码）；修改 / 找回密码；网关 JWT 鉴权；收货地址；会员等级；积分查询（写流水随阶段 6 支付）；后台 admin_user 登录 + RBAC 五表 + @PreAuthorize | 前台登录注册 / 个人中心 / 地址管理页（遗留：找回密码页待补，API 已就绪）；后台登录 + 用户 / 角色 / 菜单管理页 | 双账号体系闭环，网关鉴权分流生效 | 已完成 |
+| 3. 商品域与进销存 | 第 3~4 周 | 2.1~2.7 + 15.1~15.4 + 15.6 + 5.1 / 5.5 + 11.1（商品 / 采购表索引） | 分类 / 品牌、SPU/SKU、上下架；供应商档案；采购单状态机（待审核 / 待收货 / 部分入库 / 已完成）；分批入库（加 stock + stock_log 留痕 change_type=5）；盘点调整（change_type=7）；库存查询 / 预警联动补货；收藏（member_favorite）；详情 Redis 缓存三防（穿透 / 击穿 / 雪崩）；xxl-job 预热；图片上传（本地存储） | 前台商品列表 / 详情页；后台商品 / 分类 / 品牌管理页 + 供应商 / 采购单 / 入库 / 库存管理页 | 进货 → 入库 → 上架链路跑通，缓存三防可演示 | 未开始 |
+| 4. 购物车与营销 | 第 5 周 | 3 + 4 | Redis Hash 购物车；结算前校验（失效标记）；券模板 / 发放 / 领券（Redisson 锁 + Lua 防超领 + SETNX 幂等）/ 锁券 / 核销 / 退回 / 过期（xxl-job 兜底）；下单优惠计算（满减 / 折扣） | 购物车页；领券中心、我的优惠券；后台券模板管理页 | 加购 → 选券闭环，超领可压测复现 | 未开始 |
+| 5. 交易核心 | 第 6~7 周 | 5.2~5.4 + 6.1~6.7 + 8.2 / 8.4 / 8.5 + 11.3 / 11.4 | 下单编排（request_id 幂等 + 乐观锁扣库存 + 锁券 + 明细快照）；订单状态机 + 流水审计；RocketMQ 延迟消息关单；取消回补；Seata AT；本地消息表 tx_message（事务消息）；死信队列（重试失败 → DLQ） | 订单确认页；订单列表 / 详情页 | 下单-关单闭环（不含支付），超卖复现并修复 | 未开始 |
+| 6. 支付与履约 | 第 8 周 | 7（7.1~7.12 支付与退款）+ 8.1（支付通知）+ 6.8 / 6.9 + 2.8（评价）+ 1.11（积分流水）+ 15.5（退货入库） | 拉起收银台；模拟支付宝 / 微信回调（trade_no 幂等）；主动查单兜底（xxl-job）；MQ 异步通知（发积分 / 短信）；退款状态机（仅退款 / 退货退款两分支）+ 库存 / 券回补联动；退货分支：买家寄回 → 退货入库（change_type=6）→ 打款；后台发货 + 确认收货 / 超时自动收货；收货后评价 | 收银台页；支付结果页；退款申请页；订单评价页；后台退款审核 + 发货页 | 支付-退款-履约-评价闭环，回调幂等可验证 | 未开始 |
+| 7. 高并发与运营数据 | 第 9~10 周 | 10 + 11.2 / 11.5 + 12.1~12.4 + 14（秒杀）+ 8.3（秒杀削峰异步下单） | 秒杀全链路（场次 / 商品配置、Redis 预热、Lua 扣减 + 限购、MQ 削峰异步下单、结果查询）；在线人数 / UV / 签到 / 排行榜 / 点赞 / 浏览足迹；Sentinel 限流防刷 + 幂等 token；explain 优化 + 延迟关联分页 | 秒杀活动页；签到 / 排行榜页；后台数据看板 + 秒杀配置页 | Jmeter 压测超卖闭环，全场景可演示 | 未开始 |
+| 8. 架构进阶 | 第 11~12 周 | 13（6 项全做） | 按零风险顺序：Caffeine 多级缓存 → SkyWalking 接入（javaagent）→ 网关限流 → ES 搜索（Java Client）→ Canal binlog 同步 → ShardingSphere 分库分表（Boot 4 适配验证，兜底逻辑分表演示） | ES 搜索联想 / 高亮 | 109 功能点全部闭环 | 未开始 |
 
 **排期原则：**
 
 1. **依赖驱动**：上一阶段是下一阶段的输入——无账号无法加购，无商品无订单，无订单无支付
-2. **横切面先行**：阶段 0 的 Result / 异常 / traceId 是所有模块的公共地基，不先做则每写一个模块都要返工
-3. **Redis 高频（9）不单独占阶段**：7 个子项分散伴随落地——9.1 分布式锁→阶段 3（领券）/ 阶段 4（扣库存）；9.2 / 9.3 / 9.5 缓存三防与预热→阶段 2（商品详情）；9.4 Hash 购物车→阶段 3；9.6 Lua 原子扣减→阶段 3（领券）+ 阶段 6（秒杀）；9.7 过期策略→阶段 3（券过期）
-4. **数据库场景（11）不单独占阶段**：11.1 索引随各模块建表落地（阶段 2 起，含采购表）；11.3 乐观锁 vs 悲观锁与 11.4 事务隔离级别在阶段 4 扣库存 / Seata 时演示；11.2 explain 与 11.5 大表分页在阶段 6 集中验证
+2. **横切面先行**：阶段 1 的 Result / 异常 / traceId 是所有模块的公共地基，不先做则每写一个模块都要返工
+3. **Redis 高频（9）不单独占阶段**：7 个子项分散伴随落地——9.1 分布式锁→阶段 4（领券）/ 阶段 5（扣库存）；9.2 / 9.3 / 9.5 缓存三防与预热→阶段 3（商品详情）；9.4 Hash 购物车→阶段 4；9.6 Lua 原子扣减→阶段 4（领券）+ 阶段 7（秒杀）；9.7 过期策略→阶段 4（券过期）
+4. **数据库场景（11）不单独占阶段**：11.1 索引随各模块建表落地（阶段 3 起，含采购表）；11.3 乐观锁 vs 悲观锁与 11.4 事务隔离级别在阶段 5 扣库存 / Seata 时演示；11.2 explain 与 11.5 大表分页在阶段 7 集中验证
 5. **架构进阶（13）放最后**：不是不重要，而是其价值建立在主线跑通之上——ES 搜索依赖商品数据、Canal 依赖缓存体系、ShardingSphere 依赖订单数据
 6. **前端与后端同阶段交付**：每阶段结束前端页面即可点可用，避免「后端做完前端才开工」的断层
 7. **进度列跟进**：每阶段状态在「进度」列手动维护（未开始 / 进行中 / 已完成），状态变更时建议同步提交一次 git，便于回看进度

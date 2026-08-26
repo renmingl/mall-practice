@@ -7,7 +7,7 @@ import com.mall.mbg.entity.MemberFavorite;
  * 会员收藏表 Mapper 接口
  *
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 public interface MemberFavoriteMapper extends BaseMapper<MemberFavorite> {
 

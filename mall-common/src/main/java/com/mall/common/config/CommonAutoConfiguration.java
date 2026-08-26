@@ -19,7 +19,7 @@ import org.springframework.core.Ordered;
  * 注册入口：META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports。
  * 网关（WebFlux，不依赖 mall-common）自行实现等价过滤器，见 mall-gateway 模块。
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @AutoConfiguration
 @ConditionalOnWebApplication

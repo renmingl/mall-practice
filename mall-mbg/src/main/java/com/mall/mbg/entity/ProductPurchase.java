@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  * 采购单表（进销存-进）
  *
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Getter
 @Setter

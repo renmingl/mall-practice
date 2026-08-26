@@ -1,6 +1,7 @@
 package com.mall.mbg.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Getter;
@@ -9,12 +10,14 @@ import lombok.ToString;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 后台菜单/权限表（RBAC 权限树）
  *
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Getter
 @Setter
@@ -74,4 +77,10 @@ public class AdminMenu implements Serializable {
      * 创建时间
      */
     private LocalDateTime createTime;
+
+    /**
+     * 子菜单（非表字段，权限树组装用）
+     */
+    @TableField(exist = false)
+    private List<AdminMenu> children = new ArrayList<>();
 }

@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  * 积分流水表
  *
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Getter
 @Setter

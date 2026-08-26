@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * MyBatis-Plus 代码生成器（阶段 0：实体/Mapper 落地）
+ * MyBatis-Plus 代码生成器（阶段 1：实体/Mapper 落地）
  * 产出物（全部生成到 mall-mbg 模块内，7 个有表服务依赖 mall-mbg 获得自己的实体）：
  * 实体：mall-mbg/src/main/java/com/mall/mbg/entity（Lombok @Data + @TableName）
  * Mapper：mall-mbg/src/main/java/com/mall/mbg/mapper（继承 BaseMapper，无需 XML 即可 CRUD）
@@ -20,7 +20,7 @@ import java.util.List;
  * </ol>
  * 注意：本类仅生成期使用，不属于运行时代码；数据库连接账密按本机环境修改。
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 public class MyBatisPlusGenerator {
 
@@ -58,7 +58,7 @@ public class MyBatisPlusGenerator {
         FastAutoGenerator.create(URL, USERNAME, PASSWORD)
                 .globalConfig(builder -> builder
                         .author("renmingl")
-                        // 注释日期格式带时分秒（@since 渲染为 yyyy-MM-dd HH:mm:ss，与手写类注释规范一致）
+                        // 注释日期格式带时分秒（@date 渲染为 yyyy-MM-dd HH:mm:ss，与手写类注释规范一致）
                         .commentDate("yyyy-MM-dd HH:mm:ss")
                         .outputDir(OUTPUT_DIR + "/java")
                         .disableOpenDir())
@@ -68,6 +68,10 @@ public class MyBatisPlusGenerator {
                         .mapper("mapper")
                         // XML 单独落到 resources/mapper，避免打进 java 包目录
                         .pathInfo(Collections.singletonMap(OutputFile.xml, OUTPUT_DIR + "/resources/mapper")))
+                // 自定义模板：类注释去 HTML 标签、@date 标注时间（与手写类注释规范一致）
+                .templateConfig(builder -> builder
+                        .entity("/templates/entity.java.ftl")
+                        .mapper("/templates/mapper.java.ftl"))
                 .strategyConfig(builder -> builder
                         .addInclude(TABLES)
                         .entityBuilder()

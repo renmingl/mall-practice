@@ -6,7 +6,7 @@ import lombok.Getter;
  * 统一返回码
  * 2xx 与 HTTP 语义对齐；1000+ 为业务码，随业务场景扩展（各服务可自定义业务码段）
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Getter
 public enum ResultCode {

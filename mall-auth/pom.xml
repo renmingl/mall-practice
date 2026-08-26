@@ -35,11 +35,50 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
         </dependency>
+        <!-- 分页插件（3.5.9+ 独立模块；后台用户/角色列表分页依赖） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
         <!-- 实体/Mapper 契约（mall-mbg 生成：admin_* 五表归属认证域） -->
         <dependency>
             <groupId>com.mall</groupId>
             <artifactId>mall-mbg</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <!-- Feign 契约：编排注册/登录/找回密码时调 mall-member 内部接口 -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Feign 服务名负载均衡（lb://mall-member；openfeign 已不内置负载均衡器，必须显式引入） -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+        <!-- Spring Security：后台 RBAC @PreAuthorize 权限校验 + 登录密码校验 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <!-- JWT：签发/解析（0.12.x，API 与 impl/jackson 三件套） -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
         </dependency>
         <!-- 接口文档 springdoc：doc.html -->
         <dependency>
@@ -56,7 +95,6 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-        <!-- TODO 登录鉴权章节补充：spring-boot-starter-security -->
         <!-- TODO 邮箱验证码章节补充：spring-boot-starter-mail -->
     </dependencies>
 

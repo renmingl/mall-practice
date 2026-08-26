@@ -11,7 +11,7 @@ import java.util.UUID;
  * 请求入口写入见 {@link TraceIdServletFilter} / {@link TraceIdReactiveFilter}；
  * 异步线程透传见 {@link MdcTaskWrapper}。
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 public final class TraceIdUtil {
 

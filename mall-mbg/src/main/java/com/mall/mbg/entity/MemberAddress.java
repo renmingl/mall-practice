@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  * 会员收货地址表
  *
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Getter
 @Setter

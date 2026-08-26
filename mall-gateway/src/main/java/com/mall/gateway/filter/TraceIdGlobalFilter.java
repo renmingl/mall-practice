@@ -18,7 +18,7 @@ import java.util.UUID;
  * 回写响应头供前端追踪；写入 MDC 供网关自身日志（pattern 带 %X{traceId}）；
  * 下游服务经网关转发时携带该请求头，业务侧 TraceIdServletFilter 读取后整条链路同 ID。
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Component
 public class TraceIdGlobalFilter implements GlobalFilter, Ordered {
@@ -30,10 +30,10 @@ public class TraceIdGlobalFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        String traceId = exchange.getRequest().getHeaders().getFirst(TRACE_ID_HEADER);
-        if (!StringUtils.hasText(traceId)) {
-            traceId = UUID.randomUUID().toString().replace("-", "");
-        }
+        String headerTraceId = exchange.getRequest().getHeaders().getFirst(TRACE_ID_HEADER);
+        final String traceId = StringUtils.hasText(headerTraceId)
+                ? headerTraceId
+                : UUID.randomUUID().toString().replace("-", "");
         MDC.put(MDC_KEY, traceId);
         // 响应头回写，前端可按 traceId 定位日志
         exchange.getResponse().getHeaders().set(TRACE_ID_HEADER, traceId);
@@ -41,7 +41,10 @@ public class TraceIdGlobalFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest().mutate()
                 .header(TRACE_ID_HEADER, traceId)
                 .build();
+        // contextWrite 写入 Reactor Context：异步线程切换后（如 WebClient 调用）日志仍能取到 traceId
+        // （配合 Hooks.enableAutomaticContextPropagation，MDC 跨线程自动恢复，修复 WebFlux 异步日志丢 traceId）
         return chain.filter(exchange.mutate().request(request).build())
+                .contextWrite(ctx -> ctx.put(MDC_KEY, traceId))
                 .doFinally(signalType -> MDC.remove(MDC_KEY));
     }
 

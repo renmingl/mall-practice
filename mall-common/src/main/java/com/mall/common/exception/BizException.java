@@ -7,7 +7,7 @@ import lombok.Getter;
  * 业务异常：Service 层业务规则不满足时抛出，由全局异常处理器统一转为 Result JSON
  * 使用示例：{@code throw new BizException("库存不足")} 或 {@code throw new BizException(ResultCode.NOT_FOUND, "订单不存在")}
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Getter
 public class BizException extends RuntimeException {

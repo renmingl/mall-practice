@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Configuration;
  * 仅在引入 OpenFeign 的服务（mall-portal / mall-admin）生效：依赖为 provided，
  * 用 @ConditionalOnClass 兜底防止类缺失加载失败。
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Configuration
 @ConditionalOnClass(RequestInterceptor.class)

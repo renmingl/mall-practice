@@ -12,12 +12,17 @@ spring:
       server:
         webflux:
           routes:
-            # 阶段 0 基础路由：认证中心（验证 traceId 全链路透传；后续章节按业务细分）
+            # 阶段 2 路由：认证中心（登录/注册/JWT 鉴权）
             # 注意：Gateway 5.x 配置前缀由 spring.cloud.gateway 调整为 spring.cloud.gateway.server.webflux
             - id: mall-auth
               uri: lb://mall-auth
               predicates:
-                - Path=/api/auth/**,/api/common/**
+                - Path=/api/auth/**,/api/common/**,/api/admin/**
+            # 阶段 2 路由：会员服务（个人资料/收货地址/积分，经网关鉴权后透传 X-User-Id）
+            - id: mall-member
+              uri: lb://mall-member
+              predicates:
+                - Path=/api/member/**
 
 # 接口文档：doc.html（springdoc WebFlux 适配）
 springdoc:

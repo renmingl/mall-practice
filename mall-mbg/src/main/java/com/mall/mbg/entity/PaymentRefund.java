@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  * 退款单表（整单退款状态机；退款成功后回补库存、退回优惠券——退券校验有效期，过期置已过期）
  *
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Getter
 @Setter

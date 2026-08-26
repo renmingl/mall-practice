@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * mall.id.* 配置：雪花 ID 生成器的节点参数（多实例部署时每实例分配不同 workerId）
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Data
 @ConfigurationProperties(prefix = "mall.id")

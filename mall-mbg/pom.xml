@@ -11,7 +11,7 @@
 
     <artifactId>mall-mbg</artifactId>
     <name>mall-mbg</name>
-    <description>代码生成模块：MyBatis-Plus Generator 生成 mall 库的 entity/mapper/xml（阶段 0 已接入，28 张表已生成）</description>
+    <description>代码生成模块：MyBatis-Plus Generator 生成 mall 库的 entity/mapper/xml（阶段 1 已接入，28 张表已生成）</description>
 
     <dependencies>
         <dependency>

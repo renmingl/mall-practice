@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { ping, trace } from '@/api/ping'
 import { useAppStore } from '@/stores/app'
+import { useUserStore } from '@/stores/user'
 
+const router = useRouter()
 const appStore = useAppStore()
+const userStore = useUserStore()
 const result = ref('')
 const loading = ref(false)
+
+const nickname = computed(() => userStore.nickname)
 
 // 骨架验证：/api/common/ping + /api/common/trace，验证网关路由与 traceId 全链路透传
 async function verify() {
@@ -27,7 +33,19 @@ onMounted(verify)
 
 <template>
   <div class="home">
-    <h1 class="title">mall-web-portal 前台商城（阶段 0 骨架）</h1>
+    <van-nav-bar title="mall-practice 商城">
+      <template #right>
+        <template v-if="userStore.isLoggedIn">
+          <span class="nav-link" @click="router.push('/profile')">{{ nickname }}</span>
+        </template>
+        <template v-else>
+          <span class="nav-link" @click="router.push('/login')">登录</span>
+          <span class="nav-link" @click="router.push('/register')">注册</span>
+        </template>
+      </template>
+    </van-nav-bar>
+
+    <h1 class="title">mall-web-portal 前台商城</h1>
     <van-card class="card">
       <template #title>骨架链路验证</template>
       <template #desc>
@@ -37,18 +55,28 @@ onMounted(verify)
         <p class="row">traceId（请求头 X-Trace-Id）：<code>{{ appStore.traceId || '未获取' }}</code></p>
       </template>
     </van-card>
+
+    <!-- 登录后功能区 -->
+    <van-cell-group v-if="userStore.isLoggedIn" inset title="个人中心">
+      <van-cell title="我的资料" is-link to="/profile" icon="user-o" />
+      <van-cell title="收货地址" is-link to="/address" icon="location-o" />
+    </van-cell-group>
   </div>
 </template>
 
 <style scoped>
 .home {
   max-width: 640px;
-  margin: 48px auto;
-  padding: 0 16px;
+  margin: 0 auto;
 }
 .title {
   text-align: center;
-  margin-bottom: 24px;
+  margin: 24px 0;
+}
+.nav-link {
+  margin-left: 16px;
+  color: #1989fa;
+  cursor: pointer;
 }
 .row {
   margin-top: 12px;

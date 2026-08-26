@@ -14,6 +14,12 @@
     <description>Feign 契约模块：服务间调用的接口定义 + DTO（三阶段演进的第一阶段）</description>
 
     <dependencies>
+        <!-- 契约返回统一 Result<T>：依赖 mall-common 的类型（服务方/调用方各自依赖一份） -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- OpenFeign：契约接口的 @FeignClient 注解 -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>

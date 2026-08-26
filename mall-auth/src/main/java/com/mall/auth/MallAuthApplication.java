@@ -3,13 +3,15 @@ package com.mall.auth;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
  * 认证中心启动类（端口 8100）
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @MapperScan("com.mall.mbg.mapper")
+@EnableFeignClients(basePackages = "com.mall.api")
 @SpringBootApplication
 public class MallAuthApplication {
 

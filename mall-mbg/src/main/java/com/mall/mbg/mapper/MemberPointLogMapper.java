@@ -7,7 +7,7 @@ import com.mall.mbg.entity.MemberPointLog;
  * 积分流水表 Mapper 接口
  *
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 public interface MemberPointLogMapper extends BaseMapper<MemberPointLog> {
 

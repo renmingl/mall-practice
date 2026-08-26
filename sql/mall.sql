@@ -426,7 +426,7 @@ CREATE TABLE `admin_user` (
 CREATE TABLE `admin_role` (
   `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '角色ID',
   `name`        VARCHAR(64)  NOT NULL COMMENT '角色名称（如：超级管理员）',
-  `code`        VARCHAR(64)  NOT NULL COMMENT '角色编码（如 SUPER_ADMIN，校验时加 ROLE_ 前缀）',
+  `code`        VARCHAR(64)  NOT NULL COMMENT '角色编码（如 SUPER_ADMIN；权限校验用 admin_menu.perms 权限标识，不用角色编码）',
   `description` VARCHAR(255) DEFAULT NULL COMMENT '描述',
   `status`      TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1启用 0禁用',
   `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -464,6 +464,47 @@ CREATE TABLE `admin_role_menu` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_role_menu` (`role_id`, `menu_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色-菜单权限关联表';
+
+-- ------------------------------------------------------------
+-- 初始化数据（首次建库自动生效）：前后台统一默认账号 admin / admin123（方便记忆）
+-- 权限标识与后端 @PreAuthorize("@ss.hasPerm('xxx')") 一一对应
+-- ------------------------------------------------------------
+INSERT INTO `admin_user` (`username`, `password`, `nickname`, `status`) VALUES
+('admin', '$2a$10$bV250hozGfx2/QYobhIUZ.fXi34C7AcIIvEkEE3G/3P106FO14PPm', '超级管理员', 1);
+
+-- 前台商城演示买家（密码与后台超管同一个 BCrypt 密文，即 admin123）
+INSERT INTO `member` (`username`, `password`, `nickname`, `phone`, `status`) VALUES
+('admin', '$2a$10$bV250hozGfx2/QYobhIUZ.fXi34C7AcIIvEkEE3G/3P106FO14PPm', '演示买家', '13800000000', 1);
+
+INSERT INTO `admin_role` (`name`, `code`, `description`, `status`) VALUES
+('超级管理员', 'SUPER_ADMIN', '拥有全部权限（登录后权限标识为 *）', 1);
+
+INSERT INTO `admin_user_role` (`user_id`, `role_id`) VALUES (1, 1);
+
+INSERT INTO `admin_menu` (`parent_id`, `name`, `type`, `path`, `perms`, `icon`, `sort`, `status`) VALUES
+(0, '系统管理', 1, '/system', NULL, 'setting', 1, 1),
+(1, '用户管理', 2, '/system/user', 'system:user:list', 'user', 1, 1),
+(1, '角色管理', 2, '/system/role', 'system:role:list', 'role', 2, 1),
+(1, '菜单管理', 2, '/system/menu', 'system:menu:list', 'menu', 3, 1),
+(2, '用户查询', 3, NULL, 'system:user:list', NULL, 1, 1),
+(2, '用户新增', 3, NULL, 'system:user:add', NULL, 2, 1),
+(2, '用户修改', 3, NULL, 'system:user:update', NULL, 3, 1),
+(2, '用户删除', 3, NULL, 'system:user:delete', NULL, 4, 1),
+(2, '重置密码', 3, NULL, 'system:user:resetPwd', NULL, 5, 1),
+(2, '分配角色', 3, NULL, 'system:user:assign', NULL, 6, 1),
+(3, '角色查询', 3, NULL, 'system:role:list', NULL, 1, 1),
+(3, '角色新增', 3, NULL, 'system:role:add', NULL, 2, 1),
+(3, '角色修改', 3, NULL, 'system:role:update', NULL, 3, 1),
+(3, '角色删除', 3, NULL, 'system:role:delete', NULL, 4, 1),
+(3, '分配菜单', 3, NULL, 'system:role:assign', NULL, 5, 1),
+(4, '菜单查询', 3, NULL, 'system:menu:list', NULL, 1, 1),
+(4, '菜单新增', 3, NULL, 'system:menu:add', NULL, 2, 1),
+(4, '菜单修改', 3, NULL, 'system:menu:update', NULL, 3, 1),
+(4, '菜单删除', 3, NULL, 'system:menu:delete', NULL, 4, 1);
+
+-- 超级管理员绑定全部菜单权限（关联表自增 ID 不指定，靠 SELECT 防手滑写错）
+INSERT INTO `admin_role_menu` (`role_id`, `menu_id`)
+SELECT 1, `id` FROM `admin_menu`;
 
 -- ==========================================
 -- 进销存域（归 mall-product，与库存同域：进货 → 入库 → 上架销售 → 退货）

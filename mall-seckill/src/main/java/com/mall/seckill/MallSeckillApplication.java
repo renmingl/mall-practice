@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * 秒杀服务启动类（端口 9000）
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @MapperScan("com.mall.mbg.mapper")
 @SpringBootApplication

@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
  * 使用：注入 Spring Bean（workerId/datacenterId 由配置 mall.id.worker-id / mall.id.datacenter-id 指定），
  * 或直接调用 {@link #getInstance()} 单例。
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Slf4j
 public class SnowflakeIdGenerator {

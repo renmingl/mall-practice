@@ -3,7 +3,7 @@ package com.mall.common.constant;
 /**
  * 公共常量
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 public final class CommonConstants {
 

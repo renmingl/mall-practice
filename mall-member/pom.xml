@@ -35,10 +35,21 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
         </dependency>
+        <!-- 分页插件（3.5.9+ 独立模块） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
         <!-- 实体/Mapper 契约（mall-mbg 生成：member_* 六表归属会员域） -->
         <dependency>
             <groupId>com.mall</groupId>
             <artifactId>mall-mbg</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Feign 契约：auth 编排注册/登录时经 MemberFeignClient 调用本服务内部接口 -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- 接口文档 springdoc：doc.html -->

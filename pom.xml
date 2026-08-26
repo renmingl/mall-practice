@@ -94,6 +94,12 @@
                 <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
             </dependency>
+            <!-- 3.5.9+ 分页插件（PaginationInnerInterceptor）独立成 mybatis-plus-jsqlparser 模块，需单独引入 -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
             <!-- XXL-Job 执行器客户端 -->
             <dependency>
                 <groupId>com.xuxueli</groupId>
@@ -138,6 +144,8 @@
                         <source>${java.version}</source>
                         <target>${java.version}</target>
                         <encoding>${project.build.sourceEncoding}</encoding>
+                        <!-- 保留方法参数名（@RequestParam/@PathVariable 缺省 name 时反射解析需要） -->
+                        <parameters>true</parameters>
                         <!-- 显式声明注解处理器：3.13.0 起不自动发现 classpath 处理器，Lombok 需在此声明 -->
                         <annotationProcessorPaths>
                             <path>

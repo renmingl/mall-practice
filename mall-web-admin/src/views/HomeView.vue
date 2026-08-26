@@ -27,7 +27,7 @@ onMounted(verify)
 
 <template>
   <div class="home">
-    <h1>mall-web-admin 管理后台（阶段 0 骨架）</h1>
+    <h1>mall-web-admin 管理后台（阶段 1 骨架）</h1>
     <el-card class="card">
       <template #header>骨架链路验证</template>
       <p>后端验证接口：<code>/api/common/ping</code>、<code>/api/common/trace</code>（经网关 → mall-auth）</p>

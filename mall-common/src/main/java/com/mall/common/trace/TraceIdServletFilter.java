@@ -17,7 +17,7 @@ import java.io.IOException;
  * 逻辑：取请求头 X-Trace-Id（网关/上游透传）→ 无则生成 → 写入 MDC → 响应头回写 →
  * finally 清除 MDC（防止 Tomcat 线程池复用导致 traceId 串到下一个请求）。
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class TraceIdServletFilter extends OncePerRequestFilter {

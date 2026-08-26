@@ -10,11 +10,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 骨架验证接口（阶段 0）：验证统一返回 Result / 全局异常 / traceId 链路
+ * 骨架验证接口（阶段 1）：验证统一返回 Result / 全局异常 / traceId 链路
  * 由 {@code CommonAutoConfiguration} 注册为 Bean，所有 Servlet 业务服务自动生效；
  * 网关为 WebFlux 栈（Reactive），不加载本控制器。
  * @author renmingl
- * @since 2026-08-26 00:27:53
+ * @date 2026-08-26 00:27:53
  */
 @RestController
 @RequestMapping("/api/common")
