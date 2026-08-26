@@ -1,0 +1,19 @@
+/* 全局基础样式：重置 + 通用排版 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+  color: #303133;
+  background: #f5f7fa;
+}
+
+code {
+  background: #f0f2f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}

@@ -25,6 +25,11 @@ mybatis-plus:
   global-config:
     banner: false
 
+# 接口文档：doc.html（springdoc）
+springdoc:
+  swagger-ui:
+    path: /doc.html
+
 management:
   endpoints:
     web:

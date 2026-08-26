@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mall.mbg.mapper.ProductPurchaseItemMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.mall.mbg.entity.ProductPurchaseItem">
+        <id column="id" property="id" />
+        <result column="purchase_id" property="purchaseId" />
+        <result column="sku_id" property="skuId" />
+        <result column="quantity" property="quantity" />
+        <result column="received_quantity" property="receivedQuantity" />
+        <result column="purchase_price" property="purchasePrice" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, purchase_id, sku_id, quantity, received_quantity, purchase_price, create_time, update_time
+    </sql>
+
+</mapper>

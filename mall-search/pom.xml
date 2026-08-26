@@ -31,6 +31,11 @@
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
+        <!-- 接口文档 springdoc：doc.html -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
         <!-- TODO 搜索章节补充：ES 客户端（需与 Boot 4 兼容，验证后再定版本） -->
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -11,7 +11,7 @@
 
     <artifactId>mall-mbg</artifactId>
     <name>mall-mbg</name>
-    <description>代码生成模块：MyBatis-Plus Generator 生成各库的 entity/mapper/xml</description>
+    <description>代码生成模块：MyBatis-Plus Generator 生成 mall 库的 entity/mapper/xml（阶段 0 已接入，28 张表已生成）</description>
 
     <dependencies>
         <dependency>
@@ -23,11 +23,34 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- 代码生成器（版本与 mybatis-plus 对齐）+ Freemarker 模板引擎（velocity 已弃用） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-generator</artifactId>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-        <!-- TODO 业务开发阶段补充：mybatis-plus-generator + freemarker 模板引擎（版本随 generator 适配再定） -->
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 命令行运行代码生成器：mvn -pl mall-mbg exec:java -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <mainClass>com.mall.mbg.generator.MyBatisPlusGenerator</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

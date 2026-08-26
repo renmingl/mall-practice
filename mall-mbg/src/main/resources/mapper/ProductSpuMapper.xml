@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mall.mbg.mapper.ProductSpuMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.mall.mbg.entity.ProductSpu">
+        <id column="id" property="id" />
+        <result column="spu_code" property="spuCode" />
+        <result column="category_id" property="categoryId" />
+        <result column="brand_id" property="brandId" />
+        <result column="name" property="name" />
+        <result column="subtitle" property="subtitle" />
+        <result column="main_pic" property="mainPic" />
+        <result column="pics" property="pics" />
+        <result column="unit" property="unit" />
+        <result column="detail" property="detail" />
+        <result column="sales" property="sales" />
+        <result column="status" property="status" />
+        <result column="sort" property="sort" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, spu_code, category_id, brand_id, name, subtitle, main_pic, pics, unit, detail, sales, status, sort, create_time, update_time
+    </sql>
+
+</mapper>

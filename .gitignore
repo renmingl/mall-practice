@@ -4,6 +4,9 @@
 # Log file
 *.log
 
+# Runtime logs (logback rolling files)
+/logs/
+
 # BlueJ files
 *.ctxt
 
@@ -30,3 +33,7 @@ target/
 /.idea/
 *.iml
 /.env
+
+# Node.js 前端（各前端模块自带 .gitignore，此处兜底）
+node_modules/
+dist/

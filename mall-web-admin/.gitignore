@@ -1,0 +1,14 @@
+# 依赖与构建产物
+node_modules/
+dist/
+
+# 本地环境变量（密钥类不入库）
+*.local
+
+# 日志
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.iml

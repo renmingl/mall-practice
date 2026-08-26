@@ -24,10 +24,28 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
         </dependency>
+        <!-- Servlet API：TraceIdServletFilter/全局异常处理器编译所需，运行时由 Web 容器提供（provided 不传递） -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <!-- Redis：统一缓存/分布式锁工具 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <!-- 参数校验：JSR-303 @Valid 分组校验（GlobalExceptionHandler 处理校验异常） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- Feign 拦截器（traceId 透传）：仅编译期依赖，运行时不传递——只有引入 OpenFeign
+             的服务（mall-portal/admin）才生效 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

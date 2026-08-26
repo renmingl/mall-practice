@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mall.mbg.mapper.PaymentRefundMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.mall.mbg.entity.PaymentRefund">
+        <id column="id" property="id" />
+        <result column="refund_sn" property="refundSn" />
+        <result column="order_id" property="orderId" />
+        <result column="order_sn" property="orderSn" />
+        <result column="payment_sn" property="paymentSn" />
+        <result column="member_id" property="memberId" />
+        <result column="refund_amount" property="refundAmount" />
+        <result column="reason" property="reason" />
+        <result column="refund_type" property="refundType" />
+        <result column="return_company" property="returnCompany" />
+        <result column="return_sn" property="returnSn" />
+        <result column="status" property="status" />
+        <result column="audit_by" property="auditBy" />
+        <result column="audit_time" property="auditTime" />
+        <result column="apply_time" property="applyTime" />
+        <result column="refund_time" property="refundTime" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, refund_sn, order_id, order_sn, payment_sn, member_id, refund_amount, reason, refund_type, return_company, return_sn, status, audit_by, audit_time, apply_time, refund_time, create_time, update_time
+    </sql>
+
+</mapper>

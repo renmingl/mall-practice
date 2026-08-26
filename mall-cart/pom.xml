@@ -31,6 +31,11 @@
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
+        <!-- 接口文档 springdoc：doc.html -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
         <!-- Redis 客户端已由 mall-common 传递引入（spring-boot-starter-data-redis） -->
         <dependency>
             <groupId>org.projectlombok</groupId>

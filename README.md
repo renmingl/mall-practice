@@ -1,6 +1,6 @@
 # mall-practice
 
-电商商城实战项目，覆盖微服务、分布式事务、消息队列、缓存、搜索、任务调度、链路追踪等电商核心技术。单仓库多模块 Maven 工程，支持本地一键启动与 Docker 独立镜像部署。
+电商商城实战项目，覆盖微服务、分布式事务、消息队列、缓存、搜索、任务调度、链路追踪等电商核心技术。单仓库多模块工程：16 个 Maven 后端模块 + 2 个 npm 前端模块（mall-web-admin 管理后台 / mall-web-portal 前台商城），支持本地一键启动与 Docker 独立镜像部署。
 
 > **开发运行环境：Windows 10**
 > 本文所有安装方式、命令、端口配置均基于 Windows 10（Docker Desktop 使用 Hyper-V 后端；Docker Desktop 在 Windows 上支持 WSL2 / Hyper-V 两种后端，任选其一即可，其余内容通用）。
@@ -33,12 +33,13 @@
 
 ### 第 1 步：安装基础环境（一次性）
 
-本机必须安装 2 样（JDK + Maven），另外 2 项按需决定（Docker Desktop 强烈推荐、云服务可选）：
+本机必须安装 3 样（JDK + Maven + Node.js），另外 2 项按需决定（Docker Desktop 强烈推荐、云服务可选）：
 
 | 组件 | 版本 | 是否必须 | 说明 |
 |---|---|---|---|
 | JDK | 17 | 必须 | IDEA 编译、Maven 打包、断点调试都直接调用本机 JDK，Docker 无法替代 |
 | Maven | 3.9.x（推荐 3.9.16） | 必须 | IDEA 自带 Bundled 3.9.x 可直接选用，或独立安装 3.9.16（最低 3.6.3） |
+| Node.js | 20.x LTS 及以上 | 必须 | 前端两个模块（mall-web-admin / mall-web-portal）的开发与构建；安装后自带 npm |
 | Docker Desktop | 最新版 | 非必须（强烈推荐） | 中间件按需部署 + `--scale` 多实例模拟；Hyper-V 后端，内存建议分配 4~8GB（默认 3 件套约 1GB，全量约 5GB+） |
 | 阿里云 OSS / ODPS | 云服务 | 非必须（可选，可后补） | 商品图片对象存储 / 离线数仓，学习阶段可不接入 |
 
@@ -157,15 +158,40 @@ foreach ($s in $services) { Start-Process mvn -ArgumentList "-pl",$s,"spring-boo
 >
 > **模块可任意单独启动**：服务间调用发生在运行时，启动时只依赖中间件（Nacos/MySQL/Redis 等）。无微服务依赖的模块（product/cart/auth/member/search）单独启动即可用；有下游调用的模块（portal/admin/order 等）单独启动正常，仅在调用缺失的下游服务时对应功能不可用。
 
+### 启动前端（可选，骨架验证）
+
+> 前端为仓库内 npm 模块（非 Maven 模块），与后端互不依赖，可单独启动或与后端一起联调；开发期 `/api` 请求由 Vite 代理到网关 8080（见各模块 `vite.config.ts`）。
+
+```bash
+# 终端 1：管理后台（mall-web-admin，开发端口 5173）
+cd mall-web-admin
+npm install   # 仅首次（或 package.json 变更后）需要
+npm run dev    # 开发模式，热更新；保持终端运行
+
+# 终端 2：前台商城（mall-web-portal，开发端口 5174）
+cd mall-web-portal
+npm install   # 仅首次（或 package.json 变更后）需要
+npm run dev    # 开发模式，热更新；保持终端运行
+```
+
+> **停止前端**：
+> - **正常停止**：在运行 `npm run dev` 的终端按 `Ctrl + C` 即停止（两个前端互不影响，可分别停止）。
+> - **停止残留进程**（终端已关闭或忘记停止导致端口占用，`npm run dev` 会报 `Port 5173 is already in use`）：按端口找到进程并结束——
+>   - PowerShell：`Get-NetTCPConnection -LocalPort 5173 | Select-Object -ExpandProperty OwningProcess` 拿到 PID 后 `Stop-Process -Id <PID>`
+>   - 或 CMD：`netstat -ano | findstr :5173` 记下最后一列 PID，再 `taskkill /PID <PID> /F`
+> - **其他说明**：若 `node -v` 提示找不到命令，说明 Node 安装目录不在 PATH，重开终端（或注销重登）即可；启动成功后访问 http://localhost:5173 / http://localhost:5174（见「第 5 步：验证」）。
+
 ### 第 5 步：验证
 
 - 网关接口访问：http://localhost:8080
 - 接口文档：各服务 `http://localhost:{端口}/doc.html`
 - Nacos 服务列表应看到全部已启动服务
+- 管理后台前端（mall-web-admin）：http://localhost:5173（/api 代理到网关 8080）
+- 前台商城前端（mall-web-portal）：http://localhost:5174（/api 代理到网关 8080）
 
 ### （进阶）Docker 独立部署（规划中，待业务代码完成后补充）
 
-本地稳定后，每个模块独立打包镜像部署（模块 Dockerfile 与 compose 微服务段随业务代码开发阶段补充，当前 docker-compose.yml 仅含中间件编排）：
+本地稳定后，每个模块独立打包镜像部署（后端模块 Dockerfile 与 compose 微服务段随业务代码开发阶段补充，当前 docker-compose.yml 仅含中间件编排；前端两模块为静态资源，由各自 Nginx 镜像承载，部署方式见各前端模块 README）：
 
 ```bash
 # 注意：当前 compose 仅含中间件，微服务镜像构建需先补齐各模块 Dockerfile 与 compose 服务段
@@ -472,6 +498,15 @@ services:
 | mall-seckill | 9000 | 20890 | 8080 |
 | mall-search | 9100 | 20891 | 8080 |
 
+### 前端（npm 模块，独立部署）
+
+| 模块 | 开发端口 | 生产部署 |
+|---|---|---|
+| mall-web-admin 管理后台 | 5173 | Nginx 独立镜像（构建产物 dist/） |
+| mall-web-portal 前台商城 | 5174 | Nginx 独立镜像（构建产物 dist/） |
+
+> 开发期由 Vite 代理 `/api` → 网关 8080，前端无需感知后端端口。
+
 ### 中间件
 
 | 中间件 | 端口 |
@@ -487,7 +522,7 @@ services:
 
 端口规则：
 
-- **本地直跑**：各服务 HTTP/Dubbo 端口均不同，互不冲突（同一宿主机进程共享端口空间）；Dubbo 端口仅核心链路服务启用（product/order/payment/coupon/seckill），其余为预留
+- **本地直跑**：各服务 HTTP/Dubbo 端口均不同，互不冲突（同一宿主机进程共享端口空间）；Dubbo 端口仅核心链路服务启用（product/order/payment/coupon/seckill），其余为预留；前端开发端口 5173/5174 与后端端口无冲突
 - **Docker 单机部署**：每个容器独立网络命名空间，容器内统一 8080 互不影响；仅宿主机映射端口需唯一
 - **多实例/多主机**：容器内端口可全部相同；`docker compose up -d --scale mall-order=3` 即可模拟多实例，Nacos 控制台可见同名多实例自动负载均衡
 
@@ -661,15 +696,16 @@ sequenceDiagram
 - 步骤 6~9 处于 Seata AT 全局事务范围（详见「分布式事务策略」）；步骤 10 的延迟消息超时未支付则触发关单：回补库存 + 退回优惠券
 - 步骤 1~4 即「登录后进商城还是后台」的答案：入口天然分离（商城/后台是不同站点与路由前缀），登录后网关按 JWT 角色 + 路径前缀分流，不存在登录后二选一
 
-### 4. 工程结构图（16 模块分组树）
+### 4. 工程结构图（16 个后端模块 + 2 个前端模块分组树）
 
 > 模块职责明细见「工程结构」章节速查表（按平台 / 层次分四类）；谁依赖谁见下图 5。
 
 ```mermaid
 graph TB
-    ROOT["mall-practice（Maven 聚合工程，16 模块）"]
+    ROOT["mall-practice（后端 16 模块 + 前端 2 模块）"]
     ROOT --> BASE["基础 / 契约模块（4 个）"]
     ROOT --> SVC["服务模块（12 个）"]
+    ROOT --> FRONT["前端模块（2 个，npm 独立部署）"]
     ROOT --> CFG["工程配置（非 Maven 模块）"]
 
     BASE --> COMMON["mall-common<br/>统一返回 / 异常 / 工具 / Redis<br/>（MQ / 存储封装待引入）"]
@@ -697,16 +733,21 @@ graph TB
     CFG --> SQLDIR["sql/<br/>mall.sql（28 张表）<br/>xxl_job.sql（调度中心库）"]
     CFG --> DOCKERDIR["docker/ + docker-compose.yml<br/>8 个中间件一键编排"]
 
+    FRONT --> WEBADMIN["mall-web-admin 管理后台<br/>Vue 3 + Element Plus :5173"]
+    FRONT --> WEBPORTAL["mall-web-portal 前台商城<br/>Vue 3 + Vant :5174"]
+
     classDef root fill:#1e293b,stroke:none,color:#fff
     classDef base fill:#059669,stroke:none,color:#fff
     classDef edge fill:#2563eb,stroke:none,color:#fff
     classDef biz fill:#0ea5e9,stroke:none,color:#fff
     classDef cfg fill:#64748b,stroke:none,color:#fff
+    classDef front fill:#d97706,stroke:none,color:#fff
     class ROOT root
     class COMMON,MBG,API,DUBBOAPI base
     class EDGE,GW,ADMIN,PORTAL edge
     class BIZ,AUTH,MEMBER,PRODUCT,CART,ORDER,PAY,COUPON,SECKILL,SEARCH biz
     class SQLDIR,DOCKERDIR cfg
+    class FRONT,WEBADMIN,WEBPORTAL front
 ```
 
 ### 5. 模块依赖关系图（编译期 vs 运行时）
@@ -768,13 +809,13 @@ graph TB
     COUPON -.->|实现 第三阶段| DUBBOAPI
     PAY -.->|实现 第三阶段| DUBBOAPI
     SECKILL -.->|实现 第三阶段| DUBBOAPI
-    AUTH -.->|实体待引入| MBG
-    MEMBER -.->|实体待引入| MBG
-    PRODUCT -.->|实体待引入| MBG
-    COUPON -.->|实体待引入| MBG
-    ORDER -.->|实体待引入| MBG
-    PAY -.->|实体待引入| MBG
-    SECKILL -.->|实体待引入| MBG
+    AUTH -->|实体已引入| MBG
+    MEMBER -->|实体已引入| MBG
+    PRODUCT -->|实体已引入| MBG
+    COUPON -->|实体已引入| MBG
+    ORDER -->|实体已引入| MBG
+    PAY -->|实体已引入| MBG
+    SECKILL -->|实体已引入| MBG
 
     classDef base fill:#059669,stroke:none,color:#fff
     classDef svc fill:#0ea5e9,stroke:none,color:#fff
@@ -786,7 +827,7 @@ graph TB
 - mall-gateway 零依赖（图中无任何边，属正常）：网关是 WebFlux 反应式栈，mall-common 含 web 注解不兼容
 - mall-cart（纯 Redis）/ mall-search（ES 索引）/ 聚合层（portal/admin）不连 MySQL，因此无 mall-mbg 依赖
 - Feign / Dubbo 契约双方共享契约模块：调用方拿接口、提供方实现接口（各自依赖一份，并非服务间直接依赖）
-- 目前无人依赖 mall-mbg / mall-api / mall-dubbo-api：骨架阶段正常，写业务代码时按上图虚线引入
+- 阶段 0 已引入 mall-mbg：7 个有表服务（auth/member/product/order/payment/coupon/seckill）编译期依赖实体/Mapper；mall-api / mall-dubbo-api 仍无人依赖（写业务代码时按上图虚线引入）
 - mall-api 已内置 openfeign 依赖（服务依赖 mall-api 即获得 Feign 能力）；mall-dubbo-api 当前为空模块（连 Dubbo 依赖都随第三阶段一起引入）
 
 ## 技术栈
@@ -832,18 +873,18 @@ graph TB
 | Spring Security | 7.x | 认证（登录/token 校验）+ 授权（角色权限） |
 | JWT | - | 无状态令牌，网关校验、服务间传递用户信息 |
 | MyBatis-Plus | 3.5.17 | ORM（必须用 Boot 4 专属 starter：mybatis-plus-spring-boot4-starter，3.5.13 起支持 Boot 4） |
-| Knife4j | 4.x（Boot 4 适配待验证，备选 springdoc 3.x） | 接口文档（基于 springdoc-openapi） |
-| JUnit 5 + Mockito | 最新版 | 单元测试（各模块 src/test 内，不建独立测试模块）；全链路联调用 Knife4j 页面手动验证 |
+| springdoc-openapi | 3.1.0（Knife4j 未适配 Boot 4，已改用 springdoc 原生 UI） | 接口文档（各服务 doc.html 在线调试，阶段 0 已落地） |
+| JUnit 5 + Mockito | 最新版 | 单元测试（各模块 src/test 内，不建独立测试模块）；全链路联调用 springdoc（doc.html）页面手动验证 |
 | Logback + SLF4J | 1.5.x（Boot 4 内置 spring-boot-starter-logging 默认日志栈，无需额外依赖） | 日志框架：控制台 + 滚动文件输出、MDC traceId 跨服务串链（见「日志方案」） |
 
-### 前端（前后端分离，独立仓库规划中）
+### 前端（仓库内 npm 模块，独立部署）
 
-| 端 | 技术栈 | 部署 |
-|---|---|---|
-| 管理后台 | Vue 3.5 + TypeScript + Vite 6 + Pinia + Element Plus | Nginx 独立镜像 |
-| 前台商城 | Vue 3.5 + TypeScript + Vite 6 + Pinia + Vant | Nginx 独立镜像 |
+| 模块 | 端 | 技术栈 | 部署 |
+|---|---|---|---|
+| mall-web-admin | 管理后台 | Vue 3.5 + TypeScript + Vite 6 + Pinia + Element Plus | Nginx 独立镜像（开发端口 5173） |
+| mall-web-portal | 前台商城 | Vue 3.5 + TypeScript + Vite 6 + Pinia + Vant | Nginx 独立镜像（开发端口 5174） |
 
-> 本仓库为纯后端工程；前端两个端为独立仓库规划，业务代码阶段先用 Knife4j 接口文档联调，前端仓库于排期阶段 0 建立脚手架，页面随各阶段同步交付（见「开发排期计划」）。
+> 前端两个端为仓库内 npm 模块（mall-web-admin / mall-web-portal），与后端 16 个 Maven 模块独立构建、独立部署；阶段 0 已建立脚手架（路由 / 请求封装 / 状态管理），开发期经 Vite 代理 `/api` → 网关 8080 与后端联调，页面随各阶段同步交付（见「开发排期计划」）。
 
 ### 依赖引入状态（骨架 vs 业务开发阶段）
 
@@ -853,7 +894,7 @@ graph TB
 |---|---|---|---|
 | Spring Web / Actuator / Nacos 注册发现 / Lombok | ✅ 已引入 | 全部 12 服务 | - |
 | Logback + SLF4J（日志） | ✅ 已内置（spring-boot-starter-logging 随 starter 自动引入，无需显式声明） | 全部服务 | 阶段 0 落地日志配置（滚动文件 + MDC traceId） |
-| OpenFeign + LoadBalancer | ✅ 已引入 | mall-portal / mall-admin（mall-api 内置 openfeign，被依赖后自动获得） | - |
+| OpenFeign + LoadBalancer | ✅ 已引入 | mall-portal / mall-admin 各自直接引入（mall-api 内置 openfeign，后续契约模块被依赖后自动获得） | - |
 | MyBatis-Plus + MySQL 驱动 | ✅ 已引入 | auth / member / product / order / payment / coupon / seckill 共 7 个 | - |
 | Redis（spring-data-redis） | ✅ 已引入 | mall-common（其余服务经 common 传递获得；gateway 不依赖 common 故无） | - |
 | Redisson 分布式锁 | ⏳ 待引入 | mall-common | 优惠券/库存/秒杀场景（锁） |
@@ -863,7 +904,7 @@ graph TB
 | Seata 客户端 | ⏳ 待引入 | order（@GlobalTransactional 发起方）及下游参与方 | 分布式事务场景 |
 | XXL-Job core | ⏳ 待引入 | order（关单扫描）/ seckill（秒杀预热） | 订单/秒杀场景 |
 | Elasticsearch 客户端 | ⏳ 待引入（Boot 4 兼容版待验证） | mall-search | 搜索场景 |
-| Knife4j 接口文档 | ⏳ 待引入（Boot 4 适配待验证，备选 springdoc） | 各服务 | 接口联调前 |
+| 接口文档 springdoc-openapi | ✅ 已引入（3.1.0，Boot 4 适配；Knife4j 未适配已弃用） | 全部 12 服务（Servlet 用 webmvc-ui，网关用 webflux-ui），doc.html 已验证 | 阶段 0 落地 |
 | Apache Dubbo 3 | ⏳ 待引入（Boot 4 适配待官方支持） | order + product/coupon/payment/seckill + mall-dubbo-api | 演进第三阶段 |
 | SkyWalking | 无需 pom 依赖（javaagent 无侵入） | 全部服务 | 链路追踪演示 |
 
@@ -881,7 +922,7 @@ graph TB
 
 ## 工程结构（模块架构）
 
-16 个模块按「平台 / 层次」分四类（工程结构树见「系统架构」图 4，编译期 / 运行时依赖关系见「系统架构」图 5）：
+16 个后端模块按「平台 / 层次」分四类，另有 2 个 npm 前端模块（mall-web-admin / mall-web-portal，独立部署；工程结构树见「系统架构」图 4，编译期 / 运行时依赖关系见「系统架构」图 5）：
 
 **① 前端平台（聚合层，无表不落库）**
 
@@ -914,13 +955,13 @@ graph TB
 
 | 模块 | 职责 |
 |---|---|
-| mall-common | 统一返回结构、全局异常、工具类、MDC traceId 工具、Logback 日志配置、Redis 配置（依赖已就绪）；RocketMQ 消息封装、存储封装为规划职责（rocketmq/oss 依赖待对应章节引入） |
-| mall-mbg | MyBatis Generator 代码生成，产出实体类与 Mapper |
+| mall-common | 统一返回结构（Result<T>）、全局异常、工具类、雪花 ID、MDC traceId 工具、Logback 日志配置、Redis 配置（阶段 0 已实现）；RocketMQ 消息封装、存储封装为规划职责（rocketmq/oss 依赖待对应章节引入） |
+| mall-mbg | MyBatis-Plus Generator 代码生成，产出实体类与 Mapper（阶段 0 已接入：mall 库 28 表 entity/mapper/xml 已生成） |
 | mall-api / mall-dubbo-api | 服务间调用接口契约，Feign 与 Dubbo 各自独立定义（mall-api 已内置 openfeign 依赖；mall-dubbo-api 当前空模块，Dubbo 依赖随第三阶段一起引入） |
 
 > **「平台 ≠ 服务」辨析**：mall-admin / mall-portal 是平台聚合层（只管页面数据组装与流程编排，无表）；mall-product / mall-order 等是业务数据服务（拥有表，被两个平台共同调用）——mall-product 不是「管理后台」，mall-admin 也不是「数据服务」。表名前缀按数据语义域命名（product_* 商品域归 mall-product、admin_* 后台管理域归 mall-auth 持有）：admin_* 是后台账号权限数据，由认证权限服务管而非聚合层建表；买家账号复用 member，故不存在 portal_ 前缀表（平台数据边界见业务篇「业务表设计总览」）。
 
-> 骨架阶段说明：当前 12 个服务模块仅含启动类 + application.yml（可直接启动并注册 Nacos），基础模块仅含 pom 依赖定义；全部业务代码（实体/Mapper/Service/Controller、mall-common 工具类）按业务篇「电商技术场景清单」逐场景实现，依赖引入时机见「技术栈 → 依赖引入状态」小节。
+> 阶段 0 说明：12 个服务模块已含启动类 + application.yml（可直接启动并注册 Nacos）+ 骨架验证接口（/api/common/ping|error|trace）；mall-common 已实现统一返回/全局异常/雪花 ID/traceId 工具/日志配置；mall-mbg 已生成 28 表实体与 Mapper（7 个有表服务已接入）；全部业务代码（Service/Controller）按业务篇「电商技术场景清单」逐场景实现，依赖引入时机见「技术栈 → 依赖引入状态」小节。
 
 ## 服务间通信
 
@@ -963,7 +1004,7 @@ graph TB
 | Seata 客户端与服务端版本不对齐 | 运行时协议不匹配风险 | SCA 2025.1.0.0 管理的客户端为 2.5.0，服务端镜像已同步使用 `apache/seata-server:2.5.0` |
 | MyBatis-Plus 在 Boot 4 下启动失败 | 普通 starter 不适配 Boot 4 | 必须使用 `mybatis-plus-spring-boot4-starter`（3.5.13 起支持 Boot 4，本工程 3.5.17） |
 | Maven 3.6.0 编译报插件版本要求错误 | maven-compiler-plugin 3.13.0 要求 Maven ≥ 3.6.3 | 升级 Maven 3.9.16 后使用 3.13.0（旧 Maven 低于 3.6.3 时需降插件到 3.10.1） |
-| Dubbo / Knife4j / ES 客户端的 Boot 4 适配未确认 | 引入可能启动失败 | 骨架阶段不引入（演进路线第一阶段全 Feign 不受影响），对应章节开发时验证适配版本再引入；RocketMQ / Seata / Sentinel 已由 SCA 2025.1.0.0 官方适配 Boot 4（Release Notes：RocketMQ module support Spring Boot 4.0、Sentinel 适配 Jackson 3），无需验证 |
+| Dubbo / Knife4j / ES 客户端的 Boot 4 适配未确认 | 引入可能启动失败 | 接口文档已改用 springdoc-openapi 3.1.0（12 服务 doc.html 落地）；Dubbo / ES 待对应章节开发时验证适配版本再引入；RocketMQ / Seata / Sentinel 已由 SCA 2025.1.0.0 官方适配 Boot 4（Release Notes：RocketMQ module support Spring Boot 4.0、Sentinel 适配 Jackson 3），无需验证 |
 
 ## 常见问题（FAQ）
 
@@ -1102,18 +1143,18 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 | **9. Redis 高频场景** | 9.1 Redisson 分布式锁<br>9.2 缓存穿透 / 击穿 / 雪崩防护<br>9.3 热点 key 高并发读<br>9.4 Hash 购物车存储<br>9.5 缓存预热<br>9.6 Lua 脚本原子扣减<br>9.7 Redis 过期策略应用 | 9.1 领券 / 扣库存；分布式锁实现与锁失效<br>9.2 商品详情<br>9.5 xxl-job<br>9.6 秒杀库存；Lua 原子性<br>9.7 券过期 / 在线心跳清理；过期删除策略（惰性 + 定期）<br>Redis 持久化 RDB / AOF<br>**表**：无（纯 Redis） |
 | **10. 数据统计场景**（在线人数 / UV / 签到 / 排行榜） | 10.1 实时在线人数<br>10.2 商品 PV / UV 统计<br>10.3 会员签到 / 日活<br>10.4 销量 / 秒杀排行榜<br>10.5 点赞<br>10.6 浏览足迹 | 10.1 ZSET 滑动窗口：`ZADD online_users <时间戳> <用户ID>`（请求刷新心跳），`ZCOUNT online_users (now-5min) +inf` 统计 5 分钟在线，`ZREMRANGEBYSCORE` 清理离线；另一做法 Bitmap（SETBIT + BITCOUNT，适合 UV/DAU 去重）<br>10.2 PV：`INCR page:view:{spuId}`；UV：HyperLogLog `PFADD/PFCOUNT`（12KB 亿级 UV，误差 0.81%，去重非精确）<br>10.3 Bitmap：`SETBIT sign:{memberId}:{yyyyMM} <day> 1`，`BITCOUNT` 当月天数，`BITFIELD` 连续签到<br>10.4 ZSET：`ZINCRBY rank:sales 1 skuId`，`ZREVRANGE` Top N（本质排序树）<br>10.5 Set：`SADD/SREM/SCARD` + `SISMEMBER` 判点过（天然幂等）<br>10.6 ZSET：`ZADD history:{memberId} <时间戳> <spuId>` 记录足迹，`ZREVRANGE` 最近浏览 + `ZREMRANGEBYRANK` 截断 50 条<br>为什么不用 MySQL 计数（行锁热点 / 写放大），Redis 计数器异步落库（销量回写 product_sku.sale_count）<br>**表**：纯 Redis 无新表，需持久化的计数异步落 product_sku.sale_count / product_spu.sales |
 | **11. 数据库高频场景** | 11.1 索引设计落地<br>11.2 慢 SQL 定位<br>11.3 乐观锁 vs 悲观锁对比<br>11.4 事务隔离级别演示<br>11.5 大表分页优化 | 11.1 幂等唯一键 uk_request_id / uk_trade_no / uk_order_item_id / uk_biz_id；业务编码唯一键 uk_spu_code / uk_sku_code / uk_purchase_sn；扫描组合索引 orders(status,create_time) / tx_message(status)；查询索引 member_id / spu_id / sku_id / order_id / status（coupon、seckill_session 后台列表）<br>11.2 explain 分析<br>11.3 version 扣库存 vs select for update<br>11.4 幻读 / 不可重复读<br>11.5 延迟关联<br>**表**：全业务表索引设计 |
-| **12. 高并发、安全与工程横切面** | 12.1 Sentinel 接口限流<br>12.2 接口防刷<br>12.3 幂等 token<br>12.4 Jmeter 压测复现超卖<br>12.5 图形 / 滑块验证码<br>12.6 全局异常处理器<br>12.7 统一返回封装<br>12.8 参数校验<br>12.9 链路 traceId<br>12.10 ID 生成器<br>12.11 接口文档 | 12.1 接口限流 + 热点参数限流<br>12.2 Redis 用户访问频率计数<br>12.3 防重复请求<br>12.4 验证乐观锁 / Redis 方案<br>12.5 登录注册防机器（Redis 存验证码 + 限时）<br>12.6 统一捕获业务异常返回 JSON<br>12.7 Result&lt;T&gt;<br>12.8 JSR-303 @Valid（分组校验）<br>12.9 SLF4J + Logback + MDC（日志链路追踪）<br>12.10 雪花算法<br>12.11 knife4j / springdoc-openapi（各服务 doc.html 在线调试，与「快速开始」验证入口一致） |
+| **12. 高并发、安全与工程横切面** | 12.1 Sentinel 接口限流<br>12.2 接口防刷<br>12.3 幂等 token<br>12.4 Jmeter 压测复现超卖<br>12.5 图形 / 滑块验证码<br>12.6 全局异常处理器<br>12.7 统一返回封装<br>12.8 参数校验<br>12.9 链路 traceId<br>12.10 ID 生成器<br>12.11 接口文档 | 12.1 接口限流 + 热点参数限流<br>12.2 Redis 用户访问频率计数<br>12.3 防重复请求<br>12.4 验证乐观锁 / Redis 方案<br>12.5 登录注册防机器（Redis 存验证码 + 限时）<br>12.6 统一捕获业务异常返回 JSON<br>12.7 Result&lt;T&gt;<br>12.8 JSR-303 @Valid（分组校验）<br>12.9 SLF4J + Logback + MDC（日志链路追踪）<br>12.10 雪花算法<br>12.11 springdoc-openapi（各服务 doc.html 在线调试，与「快速开始」验证入口一致） |
 | **13. 架构进阶与性能优化** | 13.1 Canal 同步缓存<br>13.2 ES 商品搜索<br>13.3 Caffeine 多级缓存<br>13.4 网关层限流鉴权<br>13.5 订单分库分表<br>13.6 SkyWalking 链路排查 | 13.1 监听 MySQL binlog<br>13.2 分词 / 高亮<br>13.3 本地缓存多级缓存<br>13.5 ShardingSphere<br>13.6 排查慢调用 |
 | **14. 秒杀场景**（mall-seckill） | 14.1 场次管理<br>14.2 秒杀商品配置<br>14.3 库存预热<br>14.4 秒杀下单（Lua 扣减 + 限购）<br>14.5 MQ 削峰异步下单<br>14.6 秒杀结果查询 | 14.1 seckill_session 场次（时间 / 状态）<br>14.2 seckill_product：seckill_price 秒杀价 / seckill_stock 秒杀库存 / limit_per_user 每人限购<br>14.3 活动开始前秒杀库存同步预热到 Redis（配置校验 seckill_stock ≤ sku.stock）<br>14.4 Lua 原子扣减 + 限购校验（防超卖 / 防黄牛；限购计数存 Redis，无 DB 持久化——学习项目可接受，Redis 故障限购失效）<br>14.5 前端快速失败 → MQ 削峰 → 异步创建订单（orders.order_type=2；落单前 order 经 Dubbo 调 seckill 核验 Redis 预扣资格，防绕过秒杀入口直接下单）→ 异步扣 sku.stock（change_type=4）<br>14.6 下单结果轮询 / 通知；秒杀订单超时关单：活动进行中回补 Redis 秒杀库存，活动已结束回补 sku.stock（change_type=9）<br>**表**：seckill_session、seckill_product、orders（order_type=2） |
 | **15. 进销存场景**（mall-product） | 15.1 供应商管理<br>15.2 采购单创建 / 审核<br>15.3 采购入库（分批收货）<br>15.4 库存盘点 / 调整<br>15.5 退货入库<br>15.6 出入库流水对账 | 15.1 product_supplier 供应商档案（联系人 / 电话 / 状态，停用不可下采购单）<br>15.2 product_purchase 状态机（0待审核 1待收货 2部分入库 3已完成 4已取消）+ product_purchase_item 明细（采购价 / 数量 / 已入库数）<br>15.3 分批入库：received_quantity 累计 ≤ quantity，入库事务 = sku.stock 增加 + stock_log 留痕（change_type=5）；库存预警联动 5.5 触发补货<br>15.4 盘点差异调整 stock + 流水留痕（change_type=7，报损 / 报溢）<br>15.5 退款需退货 → 买家寄回 → 后台确认收货 → 退货入库（change_type=6）+ 第三方退款打款<br>15.6 stock_log 按 change_type / biz_sn 聚合对账（进货-销售-退货闭环）<br>为什么先采购入库再上架：销售库存的来源，避免「无货源直接设库存」的空中楼阁<br>**表**：product_supplier、product_purchase、product_purchase_item、product_stock_log（biz_sn / change_type） |
 
 ## 开发排期计划
 
-> 15 个场景全部落地（含第 13 项架构进阶 6 个子项、第 14 项秒杀 6 个子项与第 15 项进销存 6 个子项），按正常电商业务开发顺序（依赖驱动）排期：先地基后业务、先商品后交易、先主链路后增值项。后端以「电商技术场景清单」109 个功能点为准；前端为独立仓库（技术栈规划中），页面按「两平台功能菜单总览」与后端功能同阶段交付。周期按学习型项目每天数小时投入估算，共约 12 周。表格最后一列「进度」为跟进状态，三态取值：未开始 / 进行中 / 已完成，随开发进展手动更新（建议状态变更时同步提交一次 git 留痕）。
+> 15 个场景全部落地（含第 13 项架构进阶 6 个子项、第 14 项秒杀 6 个子项与第 15 项进销存 6 个子项），按正常电商业务开发顺序（依赖驱动）排期：先地基后业务、先商品后交易、先主链路后增值项。后端以「电商技术场景清单」109 个功能点为准；前端为仓库内 npm 模块（mall-web-admin / mall-web-portal，独立部署），页面按「两平台功能菜单总览」与后端功能同阶段交付。周期按学习型项目每天数小时投入估算，共约 12 周。表格最后一列「进度」为跟进状态，三态取值：未开始 / 进行中 / 已完成，随开发进展手动更新（建议状态变更时同步提交一次 git 留痕）。
 
 | 阶段 | 建议周期 | 对应场景 | 后端交付（关键点） | 前端交付（页面） | 完成标准（里程碑） | 进度 |
 |---|---|---|---|---|---|---|
-| 0. 工程地基 | 第 1 周 | 12.6~12.11（工程横切面） | mall-common 落地：Result<T> / 全局异常 / @Valid 分组校验 / 日志（Logback 滚动文件 + MDC traceId）/ 雪花 ID；接口文档（knife4j）；mall-mbg 实体生成接入；MyBatis-Plus 连通业务库 | 前端仓库脚手架（路由 / 请求封装 / 状态管理），与网关联调 | 12 服务骨架跑通，前端经网关调通首个接口 | 未开始 |
+| 0. 工程地基 | 第 1 周 | 12.6~12.11（工程横切面） | mall-common 落地：Result<T> / 全局异常 / @Valid 分组校验 / 日志（Logback 滚动文件 + MDC traceId）/ 雪花 ID；接口文档（springdoc 3.1.0，12 服务 doc.html）；mall-mbg 实体生成接入（28 表）；MyBatis-Plus 连通业务库；网关 traceId 过滤器 | 前端脚手架（mall-web-admin / mall-web-portal：路由 / 请求封装 / 状态管理），与网关联调 | 12 服务骨架跑通，前端经网关调通首个接口 | 已完成 |
 | 1. 账号体系 | 第 2 周 | 1（1.1~1.11，积分流水随阶段 5）+ 12.5 | 买家注册登录（BCrypt + JWT 黑名单 + 图形 / 短信验证码）；修改 / 找回密码；网关 JWT 鉴权；收货地址；会员等级；积分查询（写流水随阶段 5 支付）；后台 admin_user 登录 + RBAC 五表 + @PreAuthorize | 前台登录注册 / 个人中心 / 地址管理页；后台登录 + 用户 / 角色 / 菜单管理页 | 双账号体系闭环，网关鉴权分流生效 | 未开始 |
 | 2. 商品域与进销存 | 第 3~4 周 | 2.1~2.7 + 15.1~15.4 + 15.6 + 5.1 / 5.5 + 11.1（商品 / 采购表索引） | 分类 / 品牌、SPU/SKU、上下架；供应商档案；采购单状态机（待审核 / 待收货 / 部分入库 / 已完成）；分批入库（加 stock + stock_log 留痕 change_type=5）；盘点调整（change_type=7）；库存查询 / 预警联动补货；收藏（member_favorite）；详情 Redis 缓存三防（穿透 / 击穿 / 雪崩）；xxl-job 预热；图片上传（本地存储） | 前台商品列表 / 详情页；后台商品 / 分类 / 品牌管理页 + 供应商 / 采购单 / 入库 / 库存管理页 | 进货 → 入库 → 上架链路跑通，缓存三防可演示 | 未开始 |
 | 3. 购物车与营销 | 第 5 周 | 3 + 4 | Redis Hash 购物车；结算前校验（失效标记）；券模板 / 发放 / 领券（Redisson 锁 + Lua 防超领 + SETNX 幂等）/ 锁券 / 核销 / 退回 / 过期（xxl-job 兜底）；下单优惠计算（满减 / 折扣） | 购物车页；领券中心、我的优惠券；后台券模板管理页 | 加购 → 选券闭环，超领可压测复现 | 未开始 |

@@ -9,8 +9,20 @@ spring:
       discovery:
         server-addr: 127.0.0.1:8848
     gateway:
-      # TODO 业务章节补充路由：lb://mall-auth、lb://mall-portal、lb://mall-admin 等
-      routes: []
+      server:
+        webflux:
+          routes:
+            # 阶段 0 基础路由：认证中心（验证 traceId 全链路透传；后续章节按业务细分）
+            # 注意：Gateway 5.x 配置前缀由 spring.cloud.gateway 调整为 spring.cloud.gateway.server.webflux
+            - id: mall-auth
+              uri: lb://mall-auth
+              predicates:
+                - Path=/api/auth/**,/api/common/**
+
+# 接口文档：doc.html（springdoc WebFlux 适配）
+springdoc:
+  swagger-ui:
+    path: /doc.html
 
 management:
   endpoints:

@@ -48,6 +48,10 @@
         <!-- 生态组件：Boot 4 需专属 starter -->
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <xxl-job.version>3.1.0</xxl-job.version>
+        <!-- Lombok：annotationProcessorPaths 需显式版本（与 spring-boot-dependencies BOM 一致） -->
+        <lombok.version>1.18.46</lombok.version>
+        <!-- 接口文档：springdoc 3.x 适配 Spring Boot 4（Knife4j 未适配 Boot 4，见 README 备选方案） -->
+        <springdoc.version>3.1.0</springdoc.version>
     </properties>
 
     <dependencyManagement>
@@ -96,17 +100,35 @@
                 <artifactId>xxl-job-core</artifactId>
                 <version>${xxl-job.version}</version>
             </dependency>
+            <!-- springdoc 接口文档：Servlet 栈服务用 webmvc-ui，网关用 webflux-ui，版本统一管理 -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <build>
         <pluginManagement>
             <plugins>
-                <!-- 未继承 spring-boot-starter-parent，插件版本需显式指定 -->
+                <!-- 未继承 spring-boot-starter-parent，插件版本与 repackage 执行均需显式声明 -->
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
                     <version>${spring-boot.version}</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -116,6 +138,14 @@
                         <source>${java.version}</source>
                         <target>${java.version}</target>
                         <encoding>${project.build.sourceEncoding}</encoding>
+                        <!-- 显式声明注解处理器：3.13.0 起不自动发现 classpath 处理器，Lombok 需在此声明 -->
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
                     </configuration>
                 </plugin>
             </plugins>

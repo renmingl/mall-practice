@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mall.mbg.mapper.PaymentMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.mall.mbg.entity.Payment">
+        <id column="id" property="id" />
+        <result column="payment_sn" property="paymentSn" />
+        <result column="order_id" property="orderId" />
+        <result column="order_sn" property="orderSn" />
+        <result column="member_id" property="memberId" />
+        <result column="pay_amount" property="payAmount" />
+        <result column="pay_type" property="payType" />
+        <result column="trade_no" property="tradeNo" />
+        <result column="status" property="status" />
+        <result column="notify_time" property="notifyTime" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, payment_sn, order_id, order_sn, member_id, pay_amount, pay_type, trade_no, status, notify_time, create_time, update_time
+    </sql>
+
+</mapper>

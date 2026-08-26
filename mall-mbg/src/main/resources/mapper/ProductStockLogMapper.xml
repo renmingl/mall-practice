@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mall.mbg.mapper.ProductStockLogMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.mall.mbg.entity.ProductStockLog">
+        <id column="id" property="id" />
+        <result column="sku_id" property="skuId" />
+        <result column="biz_sn" property="bizSn" />
+        <result column="change_type" property="changeType" />
+        <result column="change_count" property="changeCount" />
+        <result column="stock_before" property="stockBefore" />
+        <result column="stock_after" property="stockAfter" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, sku_id, biz_sn, change_type, change_count, stock_before, stock_after, create_time
+    </sql>
+
+</mapper>
