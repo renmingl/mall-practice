@@ -17,7 +17,15 @@ const router = createRouter({
       children: [
         { path: 'user', name: 'user', component: () => import('@/views/user/UserView.vue'), meta: { title: '用户管理' } },
         { path: 'role', name: 'role', component: () => import('@/views/role/RoleView.vue'), meta: { title: '角色管理' } },
-        { path: 'menu', name: 'menu', component: () => import('@/views/menu/MenuView.vue'), meta: { title: '菜单管理' } }
+        { path: 'menu', name: 'menu', component: () => import('@/views/menu/MenuView.vue'), meta: { title: '菜单管理' } },
+        // 阶段 3：商品域与进销存（路由固定注册；侧边栏菜单由 admin_menu 种子控制）
+        { path: 'category', name: 'category', component: () => import('@/views/category/CategoryView.vue'), meta: { title: '分类管理' } },
+        { path: 'brand', name: 'brand', component: () => import('@/views/brand/BrandView.vue'), meta: { title: '品牌管理' } },
+        { path: 'product', name: 'product', component: () => import('@/views/product/ProductView.vue'), meta: { title: '商品管理' } },
+        { path: 'product/edit/:id?', name: 'product-edit', component: () => import('@/views/product/ProductEditView.vue'), meta: { title: '商品编辑' } },
+        { path: 'supplier', name: 'supplier', component: () => import('@/views/supplier/SupplierView.vue'), meta: { title: '供应商管理' } },
+        { path: 'purchase', name: 'purchase', component: () => import('@/views/purchase/PurchaseView.vue'), meta: { title: '采购管理' } },
+        { path: 'stock', name: 'stock', component: () => import('@/views/stock/StockView.vue'), meta: { title: '库存管理' } }
       ]
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') }

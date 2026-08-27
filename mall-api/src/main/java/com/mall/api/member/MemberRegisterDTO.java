@@ -29,7 +29,8 @@ public class MemberRegisterDTO implements Serializable {
     /** 昵称 */
     private String nickname;
 
-    /** 手机号（无手机号传 null，勿传空串） */
+    /** 手机号（无手机号传 null，勿传空串；最长 20 位与表列一致） */
+    @Size(max = 20, message = "手机号长度不能超过 20 位")
     private String phone;
 
     /** 邮箱 */

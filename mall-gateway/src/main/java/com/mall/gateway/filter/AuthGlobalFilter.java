@@ -38,10 +38,13 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String AUTH_CHECK_URL = "lb://mall-auth/internal/auth/check";
 
-    /** 白名单：登录注册/验证码/刷新/退出/找回密码/后台登录/骨架验证/接口文档/健康检查 */
+    /** 白名单：登录注册/验证码/刷新/退出/找回密码/后台登录/骨架验证/接口文档/健康检查/前台商品浏览（免登录） */
     private static final String[] WHITE_LIST = {
             "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout",
             "/api/auth/forgot-password", "/api/auth/captcha", "/api/auth/admin/login", "/api/common/",
+            // 前台商品浏览无需登录（分类/品牌/列表/详情/热销；收藏不在白名单）
+            "/api/product/categories", "/api/product/brands", "/api/product/list",
+            "/api/product/detail/", "/api/product/hot",
             "/doc.html", "/webjars/", "/v3/api-docs", "/actuator/"
     };
 

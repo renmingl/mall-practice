@@ -17,6 +17,11 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: env.VITE_GATEWAY_URL || 'http://localhost:8080',
           changeOrigin: true
+        },
+        // 商品图片直连 mall-product（上传返回 /uploads/... 相对路径）
+        '/uploads': {
+          target: 'http://localhost:8500',
+          changeOrigin: true
         }
       }
     }

@@ -12,6 +12,11 @@ spring:
       server:
         webflux:
           routes:
+            # 阶段 3 路由：商品服务后台管理（须在 mall-auth 的 /api/admin/** 之前匹配）
+            - id: mall-product-admin
+              uri: lb://mall-product
+              predicates:
+                - Path=/api/admin/product/**,/api/admin/category/**,/api/admin/brand/**,/api/admin/supplier/**,/api/admin/purchase/**,/api/admin/stock/**,/api/admin/upload/**
             # 阶段 2 路由：认证中心（登录/注册/JWT 鉴权）
             # 注意：Gateway 5.x 配置前缀由 spring.cloud.gateway 调整为 spring.cloud.gateway.server.webflux
             - id: mall-auth
@@ -23,6 +28,11 @@ spring:
               uri: lb://mall-member
               predicates:
                 - Path=/api/member/**
+            # 阶段 3 路由：商品服务前台（列表/详情/分类树/热销）与收藏（需登录，X-User-Id）
+            - id: mall-product
+              uri: lb://mall-product
+              predicates:
+                - Path=/api/product/**,/api/favorite/**
 
 # 接口文档：doc.html（springdoc WebFlux 适配）
 springdoc:

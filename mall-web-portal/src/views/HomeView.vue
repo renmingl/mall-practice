@@ -56,6 +56,12 @@ onMounted(verify)
       </template>
     </van-card>
 
+    <!-- 阶段 3：商品中心入口 -->
+    <van-cell-group inset title="商品中心">
+      <van-cell title="商品列表" is-link to="/product/list" icon="shopping-cart-o" />
+      <van-cell v-if="userStore.isLoggedIn" title="我的收藏" is-link to="/favorites" icon="star-o" />
+    </van-cell-group>
+
     <!-- 登录后功能区 -->
     <van-cell-group v-if="userStore.isLoggedIn" inset title="个人中心">
       <van-cell title="我的资料" is-link to="/profile" icon="user-o" />

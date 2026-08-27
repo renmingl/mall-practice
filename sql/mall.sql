@@ -502,6 +502,38 @@ INSERT INTO `admin_menu` (`parent_id`, `name`, `type`, `path`, `perms`, `icon`, 
 (4, '菜单修改', 3, NULL, 'system:menu:update', NULL, 3, 1),
 (4, '菜单删除', 3, NULL, 'system:menu:delete', NULL, 4, 1);
 
+-- 阶段 3：商品管理菜单（目录+6 菜单+按钮权限；parent_id 沿用顺序插入的自增 ID，勿调整顺序）
+INSERT INTO `admin_menu` (`parent_id`, `name`, `type`, `path`, `perms`, `icon`, `sort`, `status`) VALUES
+(0, '商品管理', 1, '/product', NULL, 'product', 2, 1),
+(20, '分类管理', 2, '/category', 'product:category:list', NULL, 1, 1),
+(20, '品牌管理', 2, '/brand', 'product:brand:list', NULL, 2, 1),
+(20, '商品管理', 2, '/product', 'product:spu:list', NULL, 3, 1),
+(20, '供应商管理', 2, '/supplier', 'product:supplier:list', NULL, 4, 1),
+(20, '采购管理', 2, '/purchase', 'product:purchase:list', NULL, 5, 1),
+(20, '库存管理', 2, '/stock', 'product:stock:list', NULL, 6, 1),
+(21, '分类新增', 3, NULL, 'product:category:add', NULL, 1, 1),
+(21, '分类修改', 3, NULL, 'product:category:update', NULL, 2, 1),
+(21, '分类删除', 3, NULL, 'product:category:delete', NULL, 3, 1),
+(21, '分类启停', 3, NULL, 'product:category:status', NULL, 4, 1),
+(22, '品牌新增', 3, NULL, 'product:brand:add', NULL, 1, 1),
+(22, '品牌修改', 3, NULL, 'product:brand:update', NULL, 2, 1),
+(22, '品牌删除', 3, NULL, 'product:brand:delete', NULL, 3, 1),
+(22, '品牌启停', 3, NULL, 'product:brand:status', NULL, 4, 1),
+(23, '商品新增', 3, NULL, 'product:spu:add', NULL, 1, 1),
+(23, '商品修改', 3, NULL, 'product:spu:update', NULL, 2, 1),
+(23, '商品删除', 3, NULL, 'product:spu:delete', NULL, 3, 1),
+(23, '商品上下架', 3, NULL, 'product:spu:status', NULL, 4, 1),
+(23, '缓存预热', 3, NULL, 'product:spu:preload', NULL, 5, 1),
+(24, '供应商新增', 3, NULL, 'product:supplier:add', NULL, 1, 1),
+(24, '供应商修改', 3, NULL, 'product:supplier:update', NULL, 2, 1),
+(24, '供应商删除', 3, NULL, 'product:supplier:delete', NULL, 3, 1),
+(24, '供应商启停', 3, NULL, 'product:supplier:status', NULL, 4, 1),
+(25, '采购单创建', 3, NULL, 'product:purchase:add', NULL, 1, 1),
+(25, '采购审核', 3, NULL, 'product:purchase:audit', NULL, 2, 1),
+(25, '采购取消', 3, NULL, 'product:purchase:cancel', NULL, 3, 1),
+(25, '分批入库', 3, NULL, 'product:purchase:receive', NULL, 4, 1),
+(26, '库存盘点', 3, NULL, 'product:stock:check', NULL, 1, 1);
+
 -- 超级管理员绑定全部菜单权限（关联表自增 ID 不指定，靠 SELECT 防手滑写错）
 INSERT INTO `admin_role_menu` (`role_id`, `menu_id`)
 SELECT 1, `id` FROM `admin_menu`;

@@ -24,6 +24,15 @@ const router = createRouter({
       component: () => import('@/views/AddressView.vue'),
       meta: { requiresAuth: true }
     },
+    // 阶段 3：商品列表/详情（公开）与我的收藏（需登录）
+    { path: '/product/list', name: 'product-list', component: () => import('@/views/ProductListView.vue') },
+    { path: '/product/:id', name: 'product-detail', component: () => import('@/views/ProductDetailView.vue') },
+    {
+      path: '/favorites',
+      name: 'favorites',
+      component: () => import('@/views/FavoriteListView.vue'),
+      meta: { requiresAuth: true }
+    },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') }
   ]
 })

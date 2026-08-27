@@ -19,6 +19,26 @@ spring:
       discovery:
         server-addr: 127.0.0.1:8848
 
+# 商品模块自定义配置
+mall:
+  product:
+    # 图片上传：本地存储目录（oss.enabled=false 时生效；绝对路径避免 Tomcat work 目录漂移）
+    upload-dir: ./uploads
+    # 阿里云 OSS：enabled=true 启用后图片自动上传 OSS，本地目录不生效；密钥请改为各自环境配置（建议环境变量注入）
+    oss:
+      enabled: false
+      endpoint: ""            # 例：oss-cn-hangzhou.aliyuncs.com
+      access-key-id: ""
+      access-key-secret: ""
+      bucket: ""
+      domain: ""              # 可选：自定义访问域名（CDN/绑定域名），为空则用 https://{bucket}.{endpoint}
+      dir-prefix: product     # 对象存储前缀目录
+    # 缓存三防：详情缓存基础 TTL（秒）+ TTL 随机偏移上限（秒，防雪崩）
+    detail-cache-ttl: 1800
+    detail-cache-ttl-jitter: 300
+    # 缓存预热：每次预热的商品数（销量 Top N）
+    preload-top: 20
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
