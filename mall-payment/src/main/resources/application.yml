@@ -18,6 +18,11 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+    # RocketMQ（spring-cloud-stream binder）：本服务仅发送（退款联动/返积分），无消费者绑定
+    stream:
+      rocketmq:
+        binder:
+          name-server: 127.0.0.1:9876
 
 mybatis-plus:
   configuration:

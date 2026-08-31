@@ -10,6 +10,7 @@ import {
   type ProductDetail,
   type Sku
 } from '@/api/product'
+import { addToCart } from '@/api/cart'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -73,9 +74,34 @@ async function loadFavoriteStatus() {
   }
 }
 
-/** 阶段 3 占位：下单在阶段 4 实现 */
-function onBuy() {
-  showToast('下单功能将在订单阶段开放')
+/** 阶段 4：加入购物车（需登录；加购默认勾选） */
+async function onAddToCart() {
+  if (!userStore.isLoggedIn) {
+    showToast('请先登录')
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  if (!activeSku.value) {
+    showToast('请先选择规格')
+    return
+  }
+  await addToCart(activeSku.value.id, 1)
+  showToast('已加入购物车')
+}
+
+/** 立即购买：加购（默认勾选）后直达结算页 */
+async function onBuyNow() {
+  if (!userStore.isLoggedIn) {
+    showToast('请先登录')
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  if (!activeSku.value) {
+    showToast('请先选择规格')
+    return
+  }
+  await addToCart(activeSku.value.id, 1)
+  router.push('/checkout')
 }
 
 onMounted(() => {
@@ -140,8 +166,8 @@ onMounted(() => {
     <!-- 底部操作栏 -->
     <van-action-bar safe-area-inset-bottom>
       <van-action-bar-icon :icon="favorited ? 'star' : 'star-o'" :color="favorited ? '#ee0a24' : '#646566'" :loading="favoriteLoading" text="收藏" @click="toggleFavorite" />
-      <van-action-bar-button type="warning" text="加入购物车" @click="onBuy" />
-      <van-action-bar-button type="danger" text="立即购买" @click="onBuy" />
+      <van-action-bar-button type="warning" text="加入购物车" @click="onAddToCart" />
+      <van-action-bar-button type="danger" text="立即购买" @click="onBuyNow" />
     </van-action-bar>
   </div>
 </template>

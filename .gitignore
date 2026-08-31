@@ -1,11 +1,16 @@
 # Compiled class file
 *.class
 
-# Log file
+# Log file（任意层级，覆盖根目录与各模块内日志，如 mall-*.log、npm-debug.log）
 *.log
+# 启动脚本 2> 重定向的错误输出（如 mall-admin.log.err）
+*.err
 
-# Runtime logs (logback rolling files)
-/logs/
+# Runtime logs（logback rolling files，任意层级模块内 logs 目录均忽略）
+logs/
+
+# 运行时上传文件（本地存储通道产物，不入库）
+uploads/
 
 # BlueJ files
 *.ctxt
@@ -38,3 +43,8 @@ target/
 node_modules/
 dist/
 *.tsbuildinfo
+
+# 本机验证/运维脚本与运行日志（不入库；重建方式见 tools/verify 内脚本说明）
+/tools/verify/
+/logs-svc/
+/tmp-*

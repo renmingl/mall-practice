@@ -18,6 +18,21 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+    # RocketMQ（spring-cloud-stream binder）：支付返积分（PAID）/ 退款扣回（REFUND）消费
+    stream:
+      bindings:
+        pointsConsumer-in-0:
+          destination: mall-member-points-topic
+          group: member-points-group
+          consumer:
+            max-attempts: 3
+      rocketmq:
+        binder:
+          name-server: 127.0.0.1:9876
+        bindings:
+          pointsConsumer-in-0:
+            consumer:
+              delay-level-when-next-consume: 8
 
 mybatis-plus:
   configuration:

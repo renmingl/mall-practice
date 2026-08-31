@@ -144,6 +144,83 @@ public class StockService {
         insertLog(skuId, bizSn, changeType, quantity, before, before + quantity);
     }
 
+    // ==================== 订单链路库存（阶段 5/6） ====================
+    // 说明：扣减/回补/退货入库均写在 Seata 全局事务参与方（order 发起 @GlobalTransactional，
+    // 扣减参与全局回滚）；退款回补/退货入库由 payment 经 MQ 投递触发（独立本地事务，必须幂等）
+
+    /** 下单扣减库存（change_type=1）：SELECT FOR UPDATE 行锁串行化校验防超卖，
+     *  兼容 Seata AT（主键等值定位，回滚按 undo log 恢复）。幂等由 order 侧 request_id 保证 */
+    @Transactional(rollbackFor = Exception.class)
+    public void deductStock(String bizSn, Long skuId, int quantity) {
+        if (quantity <= 0) {
+            throw new BizException("扣减数量必须大于 0");
+        }
+        // 行锁锁定该 SKU，串行化防超卖（并发下单同一 SKU 时排队校验）
+        ProductSku sku = skuMapper.selectOne(new LambdaQueryWrapper<ProductSku>()
+                .eq(ProductSku::getId, skuId)
+                .last("FOR UPDATE"));
+        if (sku == null) {
+            throw new BizException("SKU 不存在");
+        }
+        if (sku.getStock() < quantity) {
+            throw new BizException("商品库存不足");
+        }
+        int before = sku.getStock();
+        skuMapper.update(null, new UpdateWrapper<ProductSku>()
+                .eq("id", skuId)
+                .setSql("stock = stock - " + quantity)
+                .setSql("sale_count = sale_count + " + quantity));
+        insertLog(skuId, bizSn, 1, -quantity, before, before - quantity);
+    }
+
+    /** 回补库存（change_type：2取消回补 3退款回补 9秒杀回补）：MQ 至少一次投递，按
+     *  bizSn+skuId+changeType 查重幂等（回补流水为正数，已回补则跳过；多 SKU 订单逐条回补
+     *  时若缺 skuId 维度，第二条起会被首条流水误判为已回补而跳过） */
+    @Transactional(rollbackFor = Exception.class)
+    public void releaseStock(String bizSn, Long skuId, int quantity, int changeType) {
+        if (quantity <= 0) {
+            throw new BizException("回补数量必须大于 0");
+        }
+        Long exists = stockLogMapper.selectCount(new LambdaQueryWrapper<ProductStockLog>()
+                .eq(ProductStockLog::getBizSn, bizSn)
+                .eq(ProductStockLog::getSkuId, skuId)
+                .eq(ProductStockLog::getChangeType, changeType)
+                .gt(ProductStockLog::getChangeCount, 0));
+        if (exists != null && exists > 0) {
+            return;
+        }
+        ProductSku sku = skuMapper.selectById(skuId);
+        if (sku == null) {
+            throw new BizException("SKU 不存在");
+        }
+        int before = sku.getStock();
+        skuMapper.update(null, new UpdateWrapper<ProductSku>()
+                .eq("id", skuId)
+                .setSql("stock = stock + " + quantity));
+        insertLog(skuId, bizSn, changeType, quantity, before, before + quantity);
+    }
+
+    /** 退货入库（change_type=6，退款退货确认收货联动）：按 refundSn+skuId 查重幂等（多 SKU 订单逐条入库） */
+    @Transactional(rollbackFor = Exception.class)
+    public void stockInReturn(String refundSn, Long skuId, int quantity) {
+        Long exists = stockLogMapper.selectCount(new LambdaQueryWrapper<ProductStockLog>()
+                .eq(ProductStockLog::getBizSn, refundSn)
+                .eq(ProductStockLog::getSkuId, skuId)
+                .eq(ProductStockLog::getChangeType, 6));
+        if (exists != null && exists > 0) {
+            return;
+        }
+        ProductSku sku = skuMapper.selectById(skuId);
+        if (sku == null) {
+            throw new BizException("SKU 不存在");
+        }
+        int before = sku.getStock();
+        skuMapper.update(null, new UpdateWrapper<ProductSku>()
+                .eq("id", skuId)
+                .setSql("stock = stock + " + quantity));
+        insertLog(skuId, refundSn, 6, quantity, before, before + quantity);
+    }
+
     /** 记录库存流水（change_count 正数增加、负数减少，与表注释一致） */
     private void insertLog(Long skuId, String bizSn, int changeType, int changeCount, int before, int after) {
         ProductStockLog stockLog = new ProductStockLog();

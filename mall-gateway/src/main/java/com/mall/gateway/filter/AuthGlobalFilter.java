@@ -42,9 +42,9 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     private static final String[] WHITE_LIST = {
             "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout",
             "/api/auth/forgot-password", "/api/auth/captcha", "/api/auth/admin/login", "/api/common/",
-            // 前台商品浏览无需登录（分类/品牌/列表/详情/热销；收藏不在白名单）
+            // 前台商品浏览无需登录（分类/品牌/列表/详情/热销/商品评价；收藏不在白名单）
             "/api/product/categories", "/api/product/brands", "/api/product/list",
-            "/api/product/detail/", "/api/product/hot",
+            "/api/product/detail/", "/api/product/hot", "/api/comment/spu/",
             "/doc.html", "/webjars/", "/v3/api-docs", "/actuator/"
     };
 

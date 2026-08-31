@@ -33,6 +33,75 @@ const router = createRouter({
       component: () => import('@/views/FavoriteListView.vue'),
       meta: { requiresAuth: true }
     },
+    // 阶段 4：购物车与优惠券（需登录）
+    {
+      path: '/cart',
+      name: 'cart',
+      component: () => import('@/views/CartView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/coupon-center',
+      name: 'coupon-center',
+      component: () => import('@/views/CouponCenterView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/my-coupons',
+      name: 'my-coupons',
+      component: () => import('@/views/MyCouponView.vue'),
+      meta: { requiresAuth: true }
+    },
+    // 阶段 5：结算与订单（需登录）
+    {
+      path: '/checkout',
+      name: 'checkout',
+      component: () => import('@/views/CheckoutView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/orders',
+      name: 'orders',
+      component: () => import('@/views/OrderListView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/order/:orderSn',
+      name: 'order-detail',
+      component: () => import('@/views/OrderDetailView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/cashier',
+      name: 'cashier',
+      component: () => import('@/views/CashierView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/pay-result',
+      name: 'pay-result',
+      component: () => import('@/views/PayResultView.vue'),
+      meta: { requiresAuth: true }
+    },
+    // 阶段 6：退款与评价（需登录）
+    {
+      path: '/refunds',
+      name: 'refunds',
+      component: () => import('@/views/RefundListView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/refund/apply',
+      name: 'refund-apply',
+      component: () => import('@/views/RefundApplyView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/comment',
+      name: 'comment',
+      component: () => import('@/views/CommentView.vue'),
+      meta: { requiresAuth: true }
+    },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') }
   ]
 })

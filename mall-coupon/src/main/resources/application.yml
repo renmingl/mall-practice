@@ -18,6 +18,36 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+    # RocketMQ（spring-cloud-stream binder）：退款退券消费者
+    stream:
+      bindings:
+        couponRefundConsumer-in-0:
+          destination: mall-coupon-refund-topic
+          group: coupon-group
+          consumer:
+            max-attempts: 3
+      rocketmq:
+        binder:
+          name-server: 127.0.0.1:9876
+        bindings:
+          couponRefundConsumer-in-0:
+            consumer:
+              delay-level-when-next-consume: 8
+
+# Seata AT：锁券/核销为全局事务参与方（order 发起 @GlobalTransactional）；file registry 直连本地 TC（docker-compose 已就绪）
+seata:
+  enabled: true
+  application-id: mall-coupon
+  tx-service-group: mall_tx_group
+  registry:
+    type: file
+  config:
+    type: file
+  service:
+    vgroup-mapping:
+      mall_tx_group: default
+    grouplist:
+      default: 127.0.0.1:8091
 
 mybatis-plus:
   configuration:

@@ -81,7 +81,7 @@ services:
       - ./docker/rocketmq/broker.conf:/home/rocketmq/rocketmq-5.3.2/conf/broker.conf
       # 消息存储（commitlog/consumequeue）持久化，容器重建不丢消息
       - ${DOCKER_DATA_DIR}/rocketmq-broker:/home/rocketmq/store
-    command: sh mqbroker -c /home/rocketmq/rocketmq-5.3.2/conf/broker.conf
+    command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/rocketmq-5.3.2/conf/broker.conf
     restart: unless-stopped
 
   rocketmq-dashboard:

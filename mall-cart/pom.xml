@@ -19,9 +19,10 @@
             <artifactId>mall-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+                <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -30,6 +31,21 @@
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <!-- Feign 契约：购物车列表组装调 product 查 SKU 快照（价格/上下架/库存） -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <!-- Feign 服务名负载均衡（lb://服务名；openfeign 已不内置负载均衡器，必须显式引入） -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
         <!-- 接口文档 springdoc：doc.html -->
         <dependency>

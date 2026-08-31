@@ -25,7 +25,12 @@ const router = createRouter({
         { path: 'product/edit/:id?', name: 'product-edit', component: () => import('@/views/product/ProductEditView.vue'), meta: { title: '商品编辑' } },
         { path: 'supplier', name: 'supplier', component: () => import('@/views/supplier/SupplierView.vue'), meta: { title: '供应商管理' } },
         { path: 'purchase', name: 'purchase', component: () => import('@/views/purchase/PurchaseView.vue'), meta: { title: '采购管理' } },
-        { path: 'stock', name: 'stock', component: () => import('@/views/stock/StockView.vue'), meta: { title: '库存管理' } }
+        { path: 'stock', name: 'stock', component: () => import('@/views/stock/StockView.vue'), meta: { title: '库存管理' } },
+        // 阶段 4/5/6：营销与交易（菜单由 admin_menu 种子控制，路径与菜单 path 对齐）
+        { path: 'coupon-template', name: 'coupon-template', component: () => import('@/views/coupon/CouponTemplateView.vue'), meta: { title: '优惠券模板' } },
+        { path: 'order', name: 'order', component: () => import('@/views/order/OrderView.vue'), meta: { title: '订单管理' } },
+        { path: 'refund', name: 'refund', component: () => import('@/views/refund/RefundView.vue'), meta: { title: '退款管理' } },
+        { path: 'comment', name: 'comment', component: () => import('@/views/comment/CommentView.vue'), meta: { title: '评价管理' } }
       ]
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') }

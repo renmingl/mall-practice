@@ -1,0 +1,41 @@
+package com.mall.api.product;
+
+import com.mall.common.result.Result;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import java.util.List;
+
+/**
+ * 商品服务内部契约（order 扣/回库存、cart 组装购物车、portal 结算预览调用）
+ * 说明：库存只经本契约变动（扣减/回补/退货入库），流水留痕在 product 侧（stock_log 对账）；
+ * 扣库存方法处于 Seata 全局事务内（order 发起，product 为参与方）
+ * @author renmingl
+ * @date 2026-08-31 10:00:00
+ */
+@FeignClient(name = "mall-product", path = "/internal/product", contextId = "productFeignClient")
+public interface ProductFeignClient {
+
+    /** 单个 SKU 下单快照（校验上下架/价格/库存用） */
+    @GetMapping("/sku-info")
+    Result<SkuOrderInfoDTO> getSkuOrderInfo(@RequestParam("skuId") Long skuId);
+
+    /** 批量 SKU 下单快照（cart 列表 / portal 结算预览组装用） */
+    @GetMapping("/sku-infos")
+    Result<List<SkuOrderInfoDTO>> getSkuOrderInfos(@RequestParam("skuIds") List<Long> skuIds);
+
+    /** 扣减库存（change_type=1 下单扣减；条件原子更新 stock>=quantity，防超卖） */
+    @PostMapping("/deduct-stock")
+    Result<Void> deductStock(@RequestBody DeductStockDTO dto);
+
+    /** 回补库存（change_type：2取消回补 3退款回补 9秒杀回补） */
+    @PostMapping("/release-stock")
+    Result<Void> releaseStock(@RequestBody ReleaseStockDTO dto);
+
+    /** 入库（change_type=6 退货入库，退款退货确认收货联动） */
+    @PostMapping("/stock-in")
+    Result<Void> stockIn(@RequestBody StockInDTO dto);
+}

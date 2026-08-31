@@ -12,11 +12,26 @@ spring:
       server:
         webflux:
           routes:
-            # 阶段 3 路由：商品服务后台管理（须在 mall-auth 的 /api/admin/** 之前匹配）
+            # 阶段 3 路由：商品服务后台管理（须在 mall-auth 的 /api/admin/** 之前匹配；含评价审核）
             - id: mall-product-admin
               uri: lb://mall-product
               predicates:
-                - Path=/api/admin/product/**,/api/admin/category/**,/api/admin/brand/**,/api/admin/supplier/**,/api/admin/purchase/**,/api/admin/stock/**,/api/admin/upload/**
+                - Path=/api/admin/product/**,/api/admin/category/**,/api/admin/brand/**,/api/admin/supplier/**,/api/admin/purchase/**,/api/admin/stock/**,/api/admin/upload/**,/api/admin/comment/**
+            # 阶段 4 路由：优惠券服务后台管理（券模板，须在 mall-auth 的 /api/admin/** 之前匹配）
+            - id: mall-coupon-admin
+              uri: lb://mall-coupon
+              predicates:
+                - Path=/api/admin/coupon/**
+            # 阶段 5 路由：订单服务后台管理（订单列表/发货，须在 mall-auth 的 /api/admin/** 之前匹配）
+            - id: mall-order-admin
+              uri: lb://mall-order
+              predicates:
+                - Path=/api/admin/order/**
+            # 阶段 6 路由：支付服务后台管理（退款审核/确认退货，须在 mall-auth 的 /api/admin/** 之前匹配）
+            - id: mall-payment-admin
+              uri: lb://mall-payment
+              predicates:
+                - Path=/api/admin/refund/**
             # 阶段 2 路由：认证中心（登录/注册/JWT 鉴权）
             # 注意：Gateway 5.x 配置前缀由 spring.cloud.gateway 调整为 spring.cloud.gateway.server.webflux
             - id: mall-auth
@@ -28,11 +43,36 @@ spring:
               uri: lb://mall-member
               predicates:
                 - Path=/api/member/**
-            # 阶段 3 路由：商品服务前台（列表/详情/分类树/热销）与收藏（需登录，X-User-Id）
+            # 阶段 3 路由：商品服务前台（列表/详情/分类树/热销）与收藏、评价（收藏/评价需登录，X-User-Id）
             - id: mall-product
               uri: lb://mall-product
               predicates:
-                - Path=/api/product/**,/api/favorite/**
+                - Path=/api/product/**,/api/favorite/**,/api/comment/**
+            # 阶段 4 路由：购物车服务（Redis Hash；需登录）
+            - id: mall-cart
+              uri: lb://mall-cart
+              predicates:
+                - Path=/api/cart/**
+            # 阶段 4 路由：优惠券服务前台（领券中心/我的优惠券；需登录）
+            - id: mall-coupon
+              uri: lb://mall-coupon
+              predicates:
+                - Path=/api/coupon/**
+            # 阶段 4 路由：前台商城聚合（结算预览；需登录）
+            - id: mall-portal
+              uri: lb://mall-portal
+              predicates:
+                - Path=/api/checkout/**
+            # 阶段 5 路由：订单服务前台（下单/取消/确认收货/详情/列表；需登录）
+            - id: mall-order
+              uri: lb://mall-order
+              predicates:
+                - Path=/api/order/**
+            # 阶段 6 路由：支付服务前台（收银台/模拟回调/支付结果/退款申请；需登录）
+            - id: mall-payment
+              uri: lb://mall-payment
+              predicates:
+                - Path=/api/payment/**
 
 # 接口文档：doc.html（springdoc WebFlux 适配）
 springdoc:

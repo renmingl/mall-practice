@@ -2,6 +2,7 @@ package com.mall.portal;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
  * 前台商城聚合服务启动类（端口 8300）
@@ -9,6 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @date 2026-08-26 00:27:53
  */
 @SpringBootApplication
+@EnableFeignClients(basePackages = "com.mall.api")   // 阶段 4/5/6：结算预览聚合 cart/coupon/product/order/payment
 public class MallPortalApplication {
 
     public static void main(String[] args) {

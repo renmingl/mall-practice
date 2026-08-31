@@ -19,9 +19,10 @@
             <artifactId>mall-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+                <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -35,11 +36,32 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
         </dependency>
+        <!-- 分页插件（3.5.9+ 独立模块；后台/前台列表分页依赖） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
         <!-- 实体/Mapper 契约（mall-mbg 生成：coupon/coupon_user 归属优惠券域） -->
         <dependency>
             <groupId>com.mall</groupId>
             <artifactId>mall-mbg</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <!-- Feign 契约：实现 CouponFeignClient 内部接口（order 锁券/核销/退回） -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- MQ：退款退券消费者（payment 退款成功后经本地消息表发 mall-coupon-refund-topic） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-stream-rocketmq</artifactId>
+        </dependency>
+        <!-- Seata AT：锁券/核销为全局事务参与方（order 发起 @GlobalTransactional） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-seata</artifactId>
         </dependency>
         <!-- 接口文档 springdoc：doc.html -->
         <dependency>

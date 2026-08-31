@@ -62,6 +62,19 @@ onMounted(verify)
       <van-cell v-if="userStore.isLoggedIn" title="我的收藏" is-link to="/favorites" icon="star-o" />
     </van-cell-group>
 
+    <!-- 阶段 4：购物车与优惠券入口（需登录） -->
+    <van-cell-group v-if="userStore.isLoggedIn" inset title="购物与优惠">
+      <van-cell title="购物车" is-link to="/cart" icon="cart-o" />
+      <van-cell title="领券中心" is-link to="/coupon-center" icon="coupon-o" />
+      <van-cell title="我的优惠券" is-link to="/my-coupons" icon="coupon-o" />
+    </van-cell-group>
+
+    <!-- 阶段 5/6：订单、退款与评价入口（需登录） -->
+    <van-cell-group v-if="userStore.isLoggedIn" inset title="交易中心">
+      <van-cell title="我的订单" is-link to="/orders" icon="orders-o" />
+      <van-cell title="我的退款单" is-link to="/refunds" icon="refund-o" />
+    </van-cell-group>
+
     <!-- 登录后功能区 -->
     <van-cell-group v-if="userStore.isLoggedIn" inset title="个人中心">
       <van-cell title="我的资料" is-link to="/profile" icon="user-o" />

@@ -371,7 +371,8 @@ CREATE TABLE `member_point_log` (
   `create_time`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   KEY `idx_member_id` (`member_id`),
-  KEY `idx_order_sn` (`order_sn`)
+  KEY `idx_order_sn` (`order_sn`),
+  UNIQUE KEY `uk_member_order_type` (`member_id`, `order_sn`, `change_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分流水表';
 
 CREATE TABLE `member_favorite` (
@@ -533,6 +534,24 @@ INSERT INTO `admin_menu` (`parent_id`, `name`, `type`, `path`, `perms`, `icon`, 
 (25, '采购取消', 3, NULL, 'product:purchase:cancel', NULL, 3, 1),
 (25, '分批入库', 3, NULL, 'product:purchase:receive', NULL, 4, 1),
 (26, '库存盘点', 3, NULL, 'product:stock:check', NULL, 1, 1);
+
+-- 阶段 4/5/6 菜单（评价管理挂在商品管理下；营销/交易为新增目录；parent_id 沿用顺序插入的自增 ID，勿调整顺序）
+INSERT INTO `admin_menu` (`parent_id`, `name`, `type`, `path`, `perms`, `icon`, `sort`, `status`) VALUES
+(20, '评价管理', 2, '/comment', 'product:comment:list', NULL, 7, 1),
+(49, '评价回复', 3, NULL, 'product:comment:reply', NULL, 1, 1),
+(49, '评价显隐', 3, NULL, 'product:comment:status', NULL, 2, 1),
+(0, '营销管理', 1, '/marketing', NULL, 'coupon', 3, 1),
+(52, '优惠券模板', 2, '/coupon-template', 'coupon:template:list', NULL, 1, 1),
+(53, '券模板新增', 3, NULL, 'coupon:template:add', NULL, 1, 1),
+(53, '券模板修改', 3, NULL, 'coupon:template:update', NULL, 2, 1),
+(53, '券模板删除', 3, NULL, 'coupon:template:delete', NULL, 3, 1),
+(53, '券模板启停', 3, NULL, 'coupon:template:status', NULL, 4, 1),
+(0, '交易管理', 1, '/trade', NULL, 'trade', 4, 1),
+(58, '订单管理', 2, '/order', 'order:list', NULL, 1, 1),
+(59, '订单发货', 3, NULL, 'order:deliver', NULL, 1, 1),
+(58, '退款管理', 2, '/refund', 'refund:list', NULL, 2, 1),
+(61, '退款审核', 3, NULL, 'refund:audit', NULL, 1, 1),
+(61, '确认退货', 3, NULL, 'refund:confirmReturn', NULL, 2, 1);
 
 -- 超级管理员绑定全部菜单权限（关联表自增 ID 不指定，靠 SELECT 防手滑写错）
 INSERT INTO `admin_role_menu` (`role_id`, `menu_id`)

@@ -19,9 +19,10 @@
             <artifactId>mall-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+                <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -45,6 +46,31 @@
             <groupId>com.mall</groupId>
             <artifactId>mall-mbg</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <!-- Feign 契约：实现 ProductFeignClient 内部接口（order 扣/回库存）；评价模块调 OrderFeignClient 校验 -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <!-- Feign 服务名负载均衡（lb://服务名；openfeign 已不内置负载均衡器，必须显式引入） -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+        <!-- MQ：退款回补库存消费者（payment 退款成功后经本地消息表发 mall-stock-refund-topic） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-stream-rocketmq</artifactId>
+        </dependency>
+        <!-- Seata AT：扣库存为全局事务参与方（order 发起 @GlobalTransactional） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-seata</artifactId>
         </dependency>
         <!-- 接口文档 springdoc：doc.html -->
         <dependency>

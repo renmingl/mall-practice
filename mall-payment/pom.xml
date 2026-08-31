@@ -19,9 +19,10 @@
             <artifactId>mall-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+                <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -40,6 +41,31 @@
             <groupId>com.mall</groupId>
             <artifactId>mall-mbg</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <!-- 分页插件（3.5.9+ 独立模块；退款单后台分页依赖） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
+        <!-- Feign 契约：order 拉起收银台调本服务；本服务回调后回写订单/查订单校验退款 -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <!-- Feign 服务名负载均衡（lb://服务名；openfeign 已不内置负载均衡器，必须显式引入） -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+        <!-- MQ：退款联动四条消息经本地消息表发送（TxMessageService 由 mall-common 条件装配） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-stream-rocketmq</artifactId>
         </dependency>
         <!-- 接口文档 springdoc：doc.html -->
         <dependency>

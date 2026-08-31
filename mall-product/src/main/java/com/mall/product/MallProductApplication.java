@@ -4,6 +4,7 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -15,6 +16,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @ConfigurationPropertiesScan   // 阶段 3：注册 OssProperties 等配置类
 @EnableScheduling   // 阶段 3：缓存预热定时任务（xxl-job 接入后替换为执行器任务）
+@EnableFeignClients(basePackages = "com.mall.api")   // 阶段 6：评价模块调 order 校验（Feign 契约）
 public class MallProductApplication {
 
     public static void main(String[] args) {

@@ -40,6 +40,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        <!-- JSON 序列化（MqSender/TxMessageService 消息体） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
         <!-- 唯一键冲突异常 DuplicateKeyException（spring-dao），全局异常处理转业务提示 -->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -57,6 +62,21 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-openfeign</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <!-- MQ 发送封装（StreamBridge 动态发送）：仅编译期依赖，运行时不传递——只有引入
+             spring-cloud-starter-stream-rocketmq 的服务（order/payment/product/coupon/member）才生效 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-stream</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- 本地消息表组件（TxMessageService）：依赖 mall-mbg 的 TxMessageMapper，optional 不传递；
+             只有显式依赖 mall-mbg 且 @MapperScan 扫描到 TxMessageMapper 的服务才装配 -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-mbg</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -18,6 +18,47 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+    # RocketMQ（spring-cloud-stream binder）：延迟关单消费者 + 退款回写订单消费者
+    stream:
+      # 多函数必须显式声明绑定（否则消费者不注册）
+      function:
+        definition: orderCloseConsumer,orderRefundConsumer
+      bindings:
+        orderCloseConsumer-in-0:
+          destination: mall-order-close-topic
+          group: order-close-group
+          consumer:
+            max-attempts: 3
+        orderRefundConsumer-in-0:
+          destination: mall-order-refund-topic
+          group: order-refund-group
+          consumer:
+            max-attempts: 3
+      rocketmq:
+        binder:
+          name-server: 127.0.0.1:9876
+        bindings:
+          orderCloseConsumer-in-0:
+            consumer:
+              delay-level-when-next-consume: 8
+          orderRefundConsumer-in-0:
+            consumer:
+              delay-level-when-next-consume: 8
+
+# Seata AT：下单编排为全局事务发起方（product 扣库存 / coupon 锁券为参与方）；file registry 直连本地 TC（docker-compose 已就绪）
+seata:
+  enabled: true
+  application-id: mall-order
+  tx-service-group: mall_tx_group
+  registry:
+    type: file
+  config:
+    type: file
+  service:
+    vgroup-mapping:
+      mall_tx_group: default
+    grouplist:
+      default: 127.0.0.1:8091
 
 mybatis-plus:
   configuration:

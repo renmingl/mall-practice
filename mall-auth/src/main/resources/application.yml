@@ -35,3 +35,8 @@ management:
     web:
       exposure:
         include: health,info
+
+# 调试：Security 授权决策日志（验证完成后移除）
+logging:
+  level:
+    org.springframework.security: DEBUG

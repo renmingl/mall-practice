@@ -63,4 +63,17 @@ public class Result<T> implements Serializable {
     public boolean isSuccess() {
         return this.code == CommonConstants.SUCCESS_CODE;
     }
+
+    /**
+     * Feign 调用方统一取数：非成功码抛业务异常（携带服务方 message），成功返回 data
+     * 注意：本方法以 get 开头会被 Jackson 当作属性序列化（错误响应时抛异常导致 403），
+     * 需加 @JsonIgnore（Jackson 3 无独立注解包，Boot 4 MVC 与 Jackson 2 均识别 com.fasterxml.jackson.annotation）
+     */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public T getDataOrThrow() {
+        if (!isSuccess()) {
+            throw new com.mall.common.exception.BizException(message);
+        }
+        return data;
+    }
 }

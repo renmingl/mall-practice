@@ -19,9 +19,10 @@
             <artifactId>mall-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+                <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -51,6 +52,11 @@
             <groupId>com.mall</groupId>
             <artifactId>mall-api</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <!-- RocketMQ（spring-cloud-stream binder）：支付返积分/退款扣回消费（mall-member-points-topic） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-stream-rocketmq</artifactId>
         </dependency>
         <!-- 接口文档 springdoc：doc.html -->
         <dependency>
