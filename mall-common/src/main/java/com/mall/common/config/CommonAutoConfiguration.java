@@ -1,7 +1,9 @@
 package com.mall.common.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.exception.GlobalExceptionHandler;
 import com.mall.common.id.SnowflakeIdGenerator;
+import com.mall.common.security.AdminApiAuthFilter;
 import com.mall.common.trace.TraceIdReactiveFilter;
 import com.mall.common.trace.TraceIdServletFilter;
 import com.mall.common.web.PingController;
@@ -36,6 +38,21 @@ public class CommonAutoConfiguration {
         registration.addUrlPatterns("/*");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
         registration.setName("traceIdFilter");
+        return registration;
+    }
+
+    /**
+     * Servlet 栈（业务服务）：后台管理接口权限过滤器，拦截 /api/admin/* 校验 X-User-Type=ADMIN
+     * （网关同规则拦截后的服务侧兜底，防内网直连绕过网关；内部契约 /internal/** 不受影响）
+     */
+    @Bean
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+    public FilterRegistrationBean<AdminApiAuthFilter> adminApiAuthFilter(ObjectMapper objectMapper) {
+        FilterRegistrationBean<AdminApiAuthFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(new AdminApiAuthFilter(objectMapper));
+        registration.addUrlPatterns("/api/admin/*");
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
+        registration.setName("adminApiAuthFilter");
         return registration;
     }
 

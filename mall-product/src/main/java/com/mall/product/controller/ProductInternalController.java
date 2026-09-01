@@ -12,6 +12,7 @@ import com.mall.mbg.entity.ProductSpu;
 import com.mall.mbg.mapper.ProductSkuMapper;
 import com.mall.mbg.mapper.ProductSpuMapper;
 import com.mall.product.service.StockService;
+import com.mall.product.service.ProductStatsService;
 import com.mall.product.util.ProductJsonUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -38,6 +40,7 @@ public class ProductInternalController {
     private final StockService stockService;
     private final ProductSkuMapper skuMapper;
     private final ProductSpuMapper spuMapper;
+    private final ProductStatsService productStatsService;
 
     /** 单个 SKU 下单快照（校验上下架/价格/库存用） */
     @GetMapping("/sku-info")
@@ -64,11 +67,42 @@ public class ProductInternalController {
         return Result.success(list);
     }
 
-    /** 扣减库存（change_type=1 下单扣减；行锁校验防超卖） */
+    /** 扣减库存（change_type：1 下单扣减 / 4 秒杀扣减；行锁校验防超卖） */
     @PostMapping("/deduct-stock")
     public Result<Void> deductStock(@RequestBody DeductStockDTO dto) {
-        stockService.deductStock(dto.getBizSn(), dto.getSkuId(), dto.getQuantity());
+        int changeType = dto.getChangeType() == null ? 1 : dto.getChangeType();
+        stockService.deductStock(dto.getBizSn(), dto.getSkuId(), dto.getQuantity(), changeType);
         return Result.success();
+    }
+
+    /** 是否存在秒杀扣减流水（seckill 关单回补判断：change_type=4 扣过才回补 sku.stock，防未扣先补虚增） */
+    @GetMapping("/has-seckill-deducted")
+    public Result<Boolean> hasSeckillDeducted(@RequestParam("bizSn") String bizSn, @RequestParam("skuId") Long skuId) {
+        return Result.success(stockService.hasSeckillDeducted(bizSn, skuId));
+    }
+
+    /** 商品销量排行榜（10.5）：ZSET rank:sales 按销量倒序取 Top N */
+    @GetMapping("/sales-rank")
+    public Result<List<Map<String, Object>>> salesRank(@RequestParam(value = "topN", defaultValue = "10") int topN) {
+        return Result.success(stockService.salesRank(Math.max(1, Math.min(topN, 50))));
+    }
+
+    /** 商品 PV / UV（10.2，看板商品统计） */
+    @GetMapping("/stats/pv-uv")
+    public Result<Map<String, Object>> pvUv(@RequestParam("spuId") Long spuId) {
+        return Result.success(productStatsService.pvUv(spuId));
+    }
+
+    /** 商品浏览排行 Top N（10.2，看板商品统计） */
+    @GetMapping("/stats/top-views")
+    public Result<List<Map<String, Object>>> topViews(@RequestParam(value = "topN", defaultValue = "10") int topN) {
+        return Result.success(productStatsService.topViews(Math.max(1, Math.min(topN, 50))));
+    }
+
+    /** 库存预警列表（看板：stock < low_stock，NULL 取全局阈值） */
+    @GetMapping("/stats/warnings")
+    public Result<List<Map<String, Object>>> stockWarnings() {
+        return Result.success(stockService.warnings());
     }
 
     /** 回补库存（change_type：2取消回补 3退款回补 9秒杀回补；按 bizSn+changeType 幂等） */

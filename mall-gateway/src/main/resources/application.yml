@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: mall-gateway
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: 123456  # 作者本地账密（与 docker-compose 的 redis 密码一致），请按各自环境修改
   cloud:
     nacos:
       discovery:
@@ -32,12 +37,41 @@ spring:
               uri: lb://mall-payment
               predicates:
                 - Path=/api/admin/refund/**
+            # 阶段 7 路由：秒杀服务（前台会场 /api/seckill/**；后台管理 /api/admin/seckill/**，须在 mall-auth 之前匹配）
+            # 阶段 8 13.4 网关限流：令牌桶 20/s、突发 40，按用户（X-User-Id）/IP 限流
+            - id: mall-seckill
+              uri: lb://mall-seckill
+              predicates:
+                - Path=/api/seckill/**,/api/admin/seckill/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    key-resolver: "#{@userKeyResolver}"
+            # 阶段 7 路由：SKU 远程搜索（秒杀商品配置选品，须在 mall-auth 之前匹配）
+            - id: mall-product-sku
+              uri: lb://mall-product
+              predicates:
+                - Path=/api/admin/sku/**
+            # 阶段 8 路由：搜索服务（前台搜索/联想 /api/search/**；后台 reindex /api/admin/search/**，须在 mall-auth 之前匹配）
+            - id: mall-search
+              uri: lb://mall-search
+              predicates:
+                - Path=/api/search/**,/api/admin/search/**
             # 阶段 2 路由：认证中心（登录/注册/JWT 鉴权）
             # 注意：Gateway 5.x 配置前缀由 spring.cloud.gateway 调整为 spring.cloud.gateway.server.webflux
+            # 阶段 8 13.4 网关限流：登录防暴力破解（令牌桶 10/s、突发 20，按用户/IP 限流）
             - id: mall-auth
               uri: lb://mall-auth
               predicates:
                 - Path=/api/auth/**,/api/common/**,/api/admin/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 10
+                    redis-rate-limiter.burstCapacity: 20
+                    key-resolver: "#{@userKeyResolver}"
             # 阶段 2 路由：会员服务（个人资料/收货地址/积分，经网关鉴权后透传 X-User-Id）
             - id: mall-member
               uri: lb://mall-member

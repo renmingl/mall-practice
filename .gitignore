@@ -37,7 +37,8 @@ target/
 # IDE
 /.idea/
 *.iml
-/.env
+# 环境变量文件（含本地账密不入库；已与 docker-compose.yml 同处 docker/ 目录，模板 docker/.env.example 照常提交）
+/docker/.env
 
 # Node.js 前端（各前端模块自带 .gitignore，此处兜底）
 node_modules/

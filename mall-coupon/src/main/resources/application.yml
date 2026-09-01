@@ -18,7 +18,7 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
-    # RocketMQ（spring-cloud-stream binder）：退款退券消费者
+    # RocketMQ（spring-cloud-stream binder）：退款退券消费者 + 死信兜底
     stream:
       bindings:
         couponRefundConsumer-in-0:
@@ -26,6 +26,12 @@ spring:
           group: coupon-group
           consumer:
             max-attempts: 3
+        # 死信：重试耗尽后 RocketMQ 自动投递 %DLQ%coupon-group（8.5），落库 mq_dead_letter 供人工介入
+        dlqCouponRefundConsumer-in-0:
+          destination: "%DLQ%coupon-group"
+          group: dlq-coupon-group
+          consumer:
+            max-attempts: 1
       rocketmq:
         binder:
           name-server: 127.0.0.1:9876
@@ -33,6 +39,18 @@ spring:
           couponRefundConsumer-in-0:
             consumer:
               delay-level-when-next-consume: 8
+
+# xxl-job 执行器（阶段 4 过期扫描集中调度；@Scheduled 本地双通道兜底并存）
+xxl:
+  job:
+    admin:
+      addresses: http://127.0.0.1:9080/xxl-job-admin
+    accessToken: default_token
+    executor:
+      appname: mall-coupon
+      port: 9703
+      logpath: ./logs/xxl-job
+      logretentiondays: 7
 
 # Seata AT：锁券/核销为全局事务参与方（order 发起 @GlobalTransactional）；file registry 直连本地 TC（docker-compose 已就绪）
 seata:

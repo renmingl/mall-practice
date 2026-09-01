@@ -175,4 +175,42 @@ VALUES (1, 'root', 'e10adc3949ba59abbe56e057f20f883e', 1, NULL);
 INSERT INTO `xxl_job_lock` (`lock_name`)
 VALUES ('schedule_lock');
 
+-- ================== mall-practice 项目执行器与任务 ==================
+-- 执行器 AppName 与各服务 application.yml 的 xxl.job.executor.appname 一致（自动注册模式）
+-- 任务 handler 与各服务 @XxlJob 注解一致；CRON 与本地 @Scheduled 兜底一致（任务幂等，双通道重复执行无害）
+
+INSERT INTO `xxl_job_group`(`id`, `app_name`, `title`, `address_type`, `address_list`, `update_time`)
+VALUES (3, 'mall-order', '订单服务执行器', 0, NULL, now()),
+       (4, 'mall-payment', '支付服务执行器', 0, NULL, now()),
+       (5, 'mall-coupon', '优惠券服务执行器', 0, NULL, now()),
+       (6, 'mall-product', '商品服务执行器', 0, NULL, now()),
+       (7, 'mall-seckill', '秒杀服务执行器', 0, NULL, now());
+
+INSERT INTO `xxl_job_info`(`id`, `job_group`, `job_desc`, `add_time`, `update_time`, `author`, `alarm_email`,
+                           `schedule_type`, `schedule_conf`, `misfire_strategy`, `executor_route_strategy`,
+                           `executor_handler`, `executor_param`, `executor_block_strategy`, `executor_timeout`,
+                           `executor_fail_retry_count`, `glue_type`, `glue_source`, `glue_remark`, `glue_updatetime`,
+                           `child_jobid`, `trigger_status`)
+VALUES (4, 3, '兜底关单扫描（待付款超30分钟自动取消）', now(), now(), 'mall-practice', '', 'CRON', '0 0/5 * * * ?',
+        'DO_NOTHING', 'FIRST', 'orderCloseScan', '', 'SERIAL_EXECUTION', 0, 0, 'BEAN', '', 'GLUE代码初始化',
+        now(), '', 1),
+       (5, 3, '自动收货（发货超15天自动完成）', now(), now(), 'mall-practice', '', 'CRON', '0 0/5 * * * ?',
+        'DO_NOTHING', 'FIRST', 'orderAutoReceive', '', 'SERIAL_EXECUTION', 0, 0, 'BEAN', '', 'GLUE代码初始化',
+        now(), '', 1),
+       (6, 4, '本地消息表补发（退款联动/返积分）', now(), now(), 'mall-practice', '', 'CRON', '0 0/5 * * * ?',
+        'DO_NOTHING', 'FIRST', 'paymentResend', '', 'SERIAL_EXECUTION', 0, 0, 'BEAN', '', 'GLUE代码初始化',
+        now(), '', 1),
+       (7, 4, '支付回写补偿（支付成功订单未回写）', now(), now(), 'mall-practice', '', 'CRON', '0 0/5 * * * ?',
+        'DO_NOTHING', 'FIRST', 'paymentWriteBack', '', 'SERIAL_EXECUTION', 0, 0, 'BEAN', '', 'GLUE代码初始化',
+        now(), '', 1),
+       (8, 5, '优惠券过期扫描（未使用过期待置3）', now(), now(), 'mall-practice', '', 'CRON', '0 0/5 * * * ?',
+        'DO_NOTHING', 'FIRST', 'couponExpireScan', '', 'SERIAL_EXECUTION', 0, 0, 'BEAN', '', 'GLUE代码初始化',
+        now(), '', 1),
+       (9, 6, '商品详情缓存预热（热销Top N）', now(), now(), 'mall-practice', '', 'CRON', '0 0 0/1 * * ?',
+        'DO_NOTHING', 'FIRST', 'productPreload', '', 'SERIAL_EXECUTION', 0, 0, 'BEAN', '', 'GLUE代码初始化',
+        now(), '', 1),
+       (10, 7, '秒杀场次自动预热（即将开始场次 DB→Redis）', now(), now(), 'mall-practice', '', 'CRON', '0/30 * * * * ?',
+        'DO_NOTHING', 'FIRST', 'seckillPreheat', '', 'SERIAL_EXECUTION', 0, 0, 'BEAN', '', 'GLUE代码初始化',
+        now(), '', 1);
+
 commit;

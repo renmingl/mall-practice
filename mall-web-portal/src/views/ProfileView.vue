@@ -95,6 +95,17 @@ onMounted(load)
       <van-cell title="退出登录" is-link @click="onLogout" />
     </van-cell-group>
 
+    <!-- 阶段 7：秒杀与运营入口 -->
+    <van-cell-group inset title="限时秒杀">
+      <van-cell title="秒杀会场" is-link to="/seckill" icon="flash" />
+      <van-cell title="排行榜" is-link to="/rank" icon="award-o" />
+    </van-cell-group>
+
+    <van-cell-group inset title="我的数据">
+      <van-cell title="每日签到" is-link to="/checkin" icon="calendar-o" />
+      <van-cell title="浏览足迹" is-link to="/history" icon="eye-o" />
+    </van-cell-group>
+
     <!-- 编辑弹层 -->
     <van-popup v-model:show="showEdit" position="bottom" round>
       <van-form @submit="saveEdit">

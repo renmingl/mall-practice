@@ -27,6 +27,12 @@ public final class MqTopics {
     /** 积分变动 Topic（payment 发/member 消费；tag=PAID 返积分 / REFUND 扣回，body={memberId, orderSn, payAmount}） */
     public static final String MEMBER_POINTS = "mall-member-points-topic";
 
+    /** 秒杀削峰异步下单 Topic（seckill 发/order 消费；tag=SUBMIT，body={seckillProductId, memberId, quantity, requestId}） */
+    public static final String SECKILL_ORDER = "mall-seckill-order-topic";
+
+    /** Tag：秒杀提交（削峰异步下单） */
+    public static final String TAG_SUBMIT = "SUBMIT";
+
     /** Tag：支付成功（返积分） */
     public static final String TAG_PAID = "PAID";
 

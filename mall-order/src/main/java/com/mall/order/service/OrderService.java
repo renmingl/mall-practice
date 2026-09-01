@@ -2,6 +2,7 @@ package com.mall.order.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.api.cart.CartFeignClient;
 import com.mall.api.cart.CartItemDTO;
 import com.mall.api.coupon.CouponAvailableDTO;
@@ -16,6 +17,7 @@ import com.mall.api.product.DeductStockDTO;
 import com.mall.api.product.ProductFeignClient;
 import com.mall.api.product.ReleaseStockDTO;
 import com.mall.api.product.SkuOrderInfoDTO;
+import com.mall.api.seckill.SeckillVerifyResultDTO;
 import com.mall.common.exception.BizException;
 import com.mall.common.mq.MqSender;
 import com.mall.common.mq.MqTopics;
@@ -26,15 +28,22 @@ import com.mall.mbg.mapper.OrderItemMapper;
 import com.mall.mbg.mapper.OrderStatusLogMapper;
 import com.mall.mbg.mapper.OrdersMapper;
 import com.mall.order.dto.OrderCreateDTO;
+import com.mall.order.dto.SeckillOrderMsg;
+import com.mall.order.remote.SeckillRemoteService;
 import io.seata.spring.annotation.GlobalTransactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -64,6 +73,15 @@ public class OrderService {
     /** 超时自动收货窗口（天）：发货后 15 天未确认自动收货 */
     public static final int AUTO_RECEIVE_DAYS = 15;
 
+    /** 秒杀结果 key 前缀（与 mall-seckill SeckillConstants.KEY_RESULT 约定一致）：seckill:result:{memberId}:{pid} */
+    private static final String SECKILL_RESULT_KEY_PREFIX = "seckill:result:";
+
+    /** 秒杀订单映射 key 前缀：seckill:order:{orderSn}（关单兑底扫描需按订单号反查秒杀商品） */
+    private static final String SECKILL_ORDER_MAPPING_PREFIX = "seckill:order:";
+
+    /** 秒杀订单映射 TTL：覆盖关单窗口（30 分钟）+ 兑底扫描余量 */
+    private static final Duration SECKILL_MAPPING_TTL = Duration.ofHours(48);
+
     private final OrdersMapper ordersMapper;
     private final OrderItemMapper orderItemMapper;
     private final OrderStatusLogMapper statusLogMapper;
@@ -73,6 +91,14 @@ public class OrderService {
     private final CouponFeignClient couponFeignClient;
     private final PaymentFeignClient paymentFeignClient;
     private final MqSender mqSender;
+    private final SeckillRemoteService seckillRemoteService;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+
+    /** 自身代理：closeExpiredOrders 经此调用，使 @Transactional 事务注解生效（同类直调绕过代理）；@Lazy 避免初始化循环依赖 */
+    @Autowired
+    @Lazy
+    private OrderService self;
 
     // ==================== 下单编排 ====================
 
@@ -188,6 +214,100 @@ public class OrderService {
             }
         });
         log.info("下单成功 orderSn={} memberId={} payAmount={}", orderSn, memberId, payAmount);
+        return order;
+    }
+
+    /**
+     * 秒杀落单（MQ 消费，14.5）：核验 Redis 预扣资格（防绕过秒杀入口）→ 插单（order_type=2）
+     * → 扣 sku.stock（change_type=4）。秒杀链路不用 Seata（README 最终一致性）：
+     * 核验失败/扣减失败均写 Redis 结果（status=2）并回滚本地订单；扣减失败经 seckill 回补
+     * Redis 秒杀库存（活动进行中）/跳过回补（活动已结束且未扣过 sku.stock，防虚增）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Orders createSeckillOrder(SeckillOrderMsg msg) {
+        // 1. 幂等：同 requestId 已存在订单直接返回（MQ 重试/重复消费场景）
+        Orders exist = ordersMapper.selectOne(Wrappers.<Orders>lambdaQuery()
+                .eq(Orders::getRequestId, msg.getRequestId()));
+        if (exist != null) {
+            log.info("秒杀重复落单请求，直接返回已有订单 requestId={} orderSn={}", msg.getRequestId(), exist.getOrderSn());
+            return exist;
+        }
+        Long memberId = msg.getMemberId();
+        Long pid = msg.getSeckillProductId();
+        int quantity = msg.getQuantity() == null ? 1 : msg.getQuantity();
+        // 2. 核验预扣资格（order → seckill Dubbo/Feign 双契约）；失败不建单，写失败结果供轮询
+        SeckillVerifyResultDTO verify = seckillRemoteService.verifyReservation(pid, memberId, quantity);
+        if (!verify.isOk()) {
+            log.warn("秒杀核验未通过 memberId={} productId={} reason={}", memberId, pid, verify.getReason());
+            writeSeckillResult(memberId, pid, 2, null, verify.getReason());
+            return null;
+        }
+        // 3. 插单（order_type=2：秒杀订单，秒杀价 × 数量，无券/无运费）
+        BigDecimal payAmount = verify.getSeckillPrice().multiply(BigDecimal.valueOf(quantity));
+        Orders order = new Orders();
+        order.setOrderSn(generateOrderSn());
+        order.setRequestId(msg.getRequestId());
+        order.setMemberId(memberId);
+        order.setOrderType((byte) 2);
+        order.setTotalAmount(payAmount);
+        order.setFreightAmount(BigDecimal.ZERO);
+        order.setCouponAmount(BigDecimal.ZERO);
+        order.setDiscountAmount(BigDecimal.ZERO);
+        order.setPayAmount(payAmount);
+        order.setStatus((byte) 0);
+        order.setReceiverName(msg.getReceiverName());
+        order.setReceiverPhone(msg.getReceiverPhone());
+        order.setReceiverAddress(msg.getReceiverAddress());
+        order.setRemark("秒杀订单");
+        ordersMapper.insert(order);
+        // 4. 明细快照（核验结果即秒杀快照）
+        OrderItem item = new OrderItem();
+        item.setOrderId(order.getId());
+        item.setOrderSn(order.getOrderSn());
+        item.setSpuId(verify.getSpuId());
+        item.setSpuName(verify.getSpuName());
+        item.setSkuId(verify.getSkuId());
+        item.setSkuCode(verify.getSkuCode());
+        item.setSpec(verify.getSpec());
+        item.setPic(verify.getPic());
+        item.setPrice(verify.getSeckillPrice());
+        item.setQuantity(quantity);
+        item.setSubtotal(payAmount);
+        orderItemMapper.insert(item);
+        // 5. 状态流水
+        statusService.logCreate(order);
+        // 6. 扣 sku.stock（change_type=4，product 独立本地事务；秒杀链路不用 Seata，失败补偿后回滚）
+        DeductStockDTO deduct = new DeductStockDTO();
+        deduct.setBizSn(order.getOrderSn());
+        deduct.setSkuId(verify.getSkuId());
+        deduct.setQuantity(quantity);
+        deduct.setChangeType(4);
+        try {
+            productFeignClient.deductStock(deduct).getDataOrThrow();
+        } catch (Exception e) {
+            log.error("秒杀落单扣库存失败 orderSn={} skuId={}", order.getOrderSn(), verify.getSkuId(), e);
+            // 补偿：回补 Redis 秒杀库存（活动进行中）/ 已结束则按流水判断跳过 sku 回补；幂等 key 用 requestId（订单已回滚）
+            try {
+                seckillRemoteService.releaseSeckillStock(msg.getRequestId(), pid, verify.getSkuId(), quantity, memberId);
+            } catch (Exception ex) {
+                log.error("秒杀扣减失败补偿异常 requestId={}", msg.getRequestId(), ex);
+            }
+            writeSeckillResult(memberId, pid, 2, null, "库存扣减失败，订单已取消");
+            throw new BizException("秒杀落单失败");
+        }
+        // 7. 写成功结果 + 订单映射（关单兑底扫描按订单号反查秒杀商品）
+        writeSeckillResult(memberId, pid, 1, order.getOrderSn(), null);
+        saveSeckillOrderMapping(order.getOrderSn(), pid, verify.getSkuId(), quantity);
+        // 8. 事务提交后发延迟关单消息（30 分钟未支付自动关单；失败由定时扫描兑底）
+        String orderSn = order.getOrderSn();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                mqSender.trySendDelay(MqTopics.ORDER_CLOSE, MqTopics.TAG_CLOSE,
+                        Map.of("orderSn", orderSn), MqTopics.DELAY_LEVEL_30M);
+            }
+        });
+        log.info("秒杀落单成功 orderSn={} memberId={} quantity={}", orderSn, memberId, quantity);
         return order;
     }
 
@@ -397,21 +517,23 @@ public class OrderService {
 
     // ==================== 超时关单 / 自动收货（MQ 消费 + 定时兜底共用） ====================
 
-    /** 关单（延迟消息消费）：待付款且超时窗口已过 → 0→4 + 回补 */
-    public void closeExpired(String orderSn) {
+    /** 关单（延迟消息消费）：待付款且超时窗口已过 → 0→4 + 回补（同事务：回补失败回滚状态更新，MQ/定时重试时可重新执行） */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean closeExpired(String orderSn) {
         Orders order = ordersMapper.selectOne(Wrappers.<Orders>lambdaQuery()
                 .eq(Orders::getOrderSn, orderSn));
         if (order == null || order.getStatus() != 0) {
-            return; // 已支付/已取消/不存在，跳过
+            return false; // 已支付/已取消/不存在，跳过
         }
         if (order.getCreateTime().plusMinutes(CLOSE_MINUTES).isAfter(LocalDateTime.now())) {
-            return; // 窗口未到（延迟消息提前到达场景）
+            return false; // 窗口未到（延迟消息提前到达场景）
         }
         if (!statusService.cancel(order, "系统", "超时未支付自动关单")) {
-            return;
+            return false;
         }
         log.info("超时关单 orderSn={}", orderSn);
         compensateCancel(order);
+        return true;
     }
 
     /** 兜底扫描：全部超时未支付订单逐个关单（延迟消息丢失/失败场景） */
@@ -423,8 +545,8 @@ public class OrderService {
         int count = 0;
         for (Orders order : expired) {
             try {
-                if (statusService.cancel(order, "系统", "超时未支付自动关单")) {
-                    compensateCancel(order);
+                // 经 self 代理调用：closeExpired 内部 status 条件更新（0→4）与回补同事务，补偿失败自动回滚重试
+                if (self.closeExpired(order.getOrderSn())) {
                     count++;
                 }
             } catch (Exception e) {
@@ -456,10 +578,68 @@ public class OrderService {
         return count;
     }
 
+    // ==================== 运营数据（10.4，看板聚合） ====================
+
+    /** 今日订单概览：今日订单数 / 已支付销售额（status 1/2/3）/ 秒杀订单数 */
+    public Map<String, Object> todayStats() {
+        LocalDateTime start = LocalDate.now().atStartOfDay();
+        Long orderCount = ordersMapper.selectCount(Wrappers.<Orders>lambdaQuery()
+                .ge(Orders::getCreateTime, start));
+        // 销售额按支付时间统计（status 1/2/3 已支付且未退款；退款单不纳入）
+        List<Orders> paid = ordersMapper.selectList(Wrappers.<Orders>lambdaQuery()
+                .ge(Orders::getPayTime, start)
+                .in(Orders::getStatus, List.of((byte) 1, (byte) 2, (byte) 3)));
+        BigDecimal salesAmount = paid.stream()
+                .map(Orders::getPayAmount)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        Long seckillCount = ordersMapper.selectCount(Wrappers.<Orders>lambdaQuery()
+                .ge(Orders::getCreateTime, start)
+                .eq(Orders::getOrderType, 2));
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("orderCount", orderCount);
+        row.put("salesAmount", salesAmount);
+        row.put("seckillCount", seckillCount);
+        return row;
+    }
+
+    /** 近 7 天订单趋势：每天订单数 + 已支付销售额（Java 分组，缺日补零） */
+    public List<Map<String, Object>> trend7d() {
+        LocalDate today = LocalDate.now();
+        LocalDateTime from = today.minusDays(6).atStartOfDay();
+        List<Orders> orders = ordersMapper.selectList(Wrappers.<Orders>lambdaQuery()
+                .ge(Orders::getCreateTime, from));
+        Map<String, Map<String, Object>> byDay = new LinkedHashMap<>();
+        for (int i = 6; i >= 0; i--) {
+            LocalDate day = today.minusDays(i);
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("date", day.format(DateTimeFormatter.ofPattern("MM-dd")));
+            row.put("orderCount", 0);
+            row.put("salesAmount", BigDecimal.ZERO);
+            byDay.put(day.toString(), row);
+        }
+        for (Orders order : orders) {
+            Map<String, Object> row = byDay.get(order.getCreateTime().toLocalDate().toString());
+            if (row == null) {
+                continue;
+            }
+            row.put("orderCount", (Integer) row.get("orderCount") + 1);
+            if (order.getStatus() != null && order.getStatus() >= 1 && order.getStatus() <= 3
+                    && order.getPayAmount() != null) {
+                row.put("salesAmount", ((BigDecimal) row.get("salesAmount")).add(order.getPayAmount()));
+            }
+        }
+        return new ArrayList<>(byDay.values());
+    }
+
     // ==================== 私有 ====================
 
-    /** 取消回补：退券（按订单反查）+ 回补库存（change_type=2，幂等） */
+    /** 取消回补：秒杀订单走秒杀专用回补；普通订单退券（按订单反查）+ 回补库存（change_type=2，幂等） */
     private void compensateCancel(Orders order) {
+        if (order.getOrderType() != null && order.getOrderType() == 2) {
+            compensateSeckillCancel(order);
+            return;
+        }
         try {
             couponFeignClient.unlockCoupon(order.getId(), order.getMemberId());
             List<OrderItem> items = orderItemMapper.selectList(Wrappers.<OrderItem>lambdaQuery()
@@ -476,6 +656,71 @@ public class OrderService {
             // 远程回补均为幂等操作；失败抛异常回滚本地订单状态（订单回到待付款，重试时回补幂等跳过）
             log.error("取消订单回补失败 orderSn={}", order.getOrderSn(), e);
             throw new BizException("订单取消失败，请稍后重试");
+        }
+    }
+
+    /**
+     * 秒杀订单取消回补（14.6）：调 seckill 专用回补（活动进行中回补 Redis 秒杀库存，
+     * 已结束回补 sku.stock change_type=9）；秒杀订单不用券，只回补库存
+     */
+    private void compensateSeckillCancel(Orders order) {
+        try {
+            Map<String, Object> mapping = readSeckillOrderMapping(order.getOrderSn());
+            if (mapping == null) {
+                // 映射缺失（Redis 过期/清理）：从订单明细取 skuId/quantity，pid 缺失则跳过（活动结束后库存对账兑底）
+                log.warn("秒杀订单映射缺失 orderSn={}，跳过秒杀回补", order.getOrderSn());
+                return;
+            }
+            Long pid = Long.valueOf(String.valueOf(mapping.get("seckillProductId")));
+            Long skuId = Long.valueOf(String.valueOf(mapping.get("skuId")));
+            int quantity = Integer.parseInt(String.valueOf(mapping.get("quantity")));
+            seckillRemoteService.releaseSeckillStock(order.getOrderSn(), pid, skuId, quantity, order.getMemberId());
+        } catch (Exception e) {
+            // 回补幂等（seckill:released:{orderSn}）；失败抛异常回滚本地订单状态，重试时幂等跳过
+            log.error("秒杀订单取消回补失败 orderSn={}", order.getOrderSn(), e);
+            throw new BizException("订单取消失败，请稍后重试");
+        }
+    }
+
+    /** 写秒杀结果（与 mall-seckill SeckillConstants.KEY_RESULT 约定一致，TTL 30 分钟供轮询） */
+    private void writeSeckillResult(Long memberId, Long seckillProductId, int status, String orderSn, String reason) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("status", status);
+        if (orderSn != null) {
+            row.put("orderSn", orderSn);
+        }
+        if (reason != null) {
+            row.put("reason", reason);
+        }
+        try {
+            redisTemplate.opsForValue().set(SECKILL_RESULT_KEY_PREFIX + memberId + ":" + seckillProductId,
+                    objectMapper.writeValueAsString(row), Duration.ofMinutes(30));
+        } catch (Exception e) {
+            log.error("写秒杀结果失败 memberId={} pid={}", memberId, seckillProductId, e);
+        }
+    }
+
+    /** 保存秒杀订单映射（关单兑底扫描按订单号反查秒杀商品/数量） */
+    private void saveSeckillOrderMapping(String orderSn, Long seckillProductId, Long skuId, int quantity) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("seckillProductId", seckillProductId);
+        row.put("skuId", skuId);
+        row.put("quantity", quantity);
+        try {
+            redisTemplate.opsForValue().set(SECKILL_ORDER_MAPPING_PREFIX + orderSn,
+                    objectMapper.writeValueAsString(row), SECKILL_MAPPING_TTL);
+        } catch (Exception e) {
+            log.error("保存秒杀订单映射失败 orderSn={}", orderSn, e);
+        }
+    }
+
+    private Map<String, Object> readSeckillOrderMapping(String orderSn) {
+        try {
+            String json = redisTemplate.opsForValue().get(SECKILL_ORDER_MAPPING_PREFIX + orderSn);
+            return json == null ? null : objectMapper.readValue(json, Map.class);
+        } catch (Exception e) {
+            log.error("读取秒杀订单映射失败 orderSn={}", orderSn, e);
+            return null;
         }
     }
 

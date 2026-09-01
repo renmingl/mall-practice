@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 订单服务内部接口（实现 mall-api OrderFeignClient 契约，仅服务间调用，网关不暴露）
@@ -60,5 +61,19 @@ public class OrderInternalController {
     public Result<Void> markRefunded(@RequestParam("orderSn") String orderSn) {
         orderService.markRefunded(orderSn);
         return Result.success();
+    }
+
+    // ==================== 运营数据（10.4，admin 看板聚合） ====================
+
+    /** 今日订单概览：订单数 / 已支付销售额 / 秒杀订单数 */
+    @GetMapping("/stats/today")
+    public Result<Map<String, Object>> todayStats() {
+        return Result.success(orderService.todayStats());
+    }
+
+    /** 近 7 天订单趋势：每天订单数 + 已支付销售额 */
+    @GetMapping("/stats/trend")
+    public Result<List<Map<String, Object>>> trend7d() {
+        return Result.success(orderService.trend7d());
     }
 }

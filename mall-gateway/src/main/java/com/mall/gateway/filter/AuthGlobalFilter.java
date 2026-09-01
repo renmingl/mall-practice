@@ -23,7 +23,8 @@ import java.util.Map;
  * JWT 鉴权全局过滤器（1.3 网关鉴权：token 有效性校验集中到网关，业务服务信任透传头）
  * 流程：白名单放行 → 校验 Authorization: Bearer → WebClient 调 auth /internal/auth/check
  * （auth 查 Redis 黑名单，网关无 Redis 依赖）→ 通过后透传 X-User-Id / X-User-Type / X-User-Perms
- * 覆盖客户端伪造的同名头 → 失败返回 401 JSON
+ * 覆盖客户端伪造的同名头；/api/admin/** 额外校验 userType=ADMIN（防买家 token 越权后台）
+ * 失败返回 401（未登录）/ 403（角色不符）JSON
  * @author renmingl
  * @date 2026-08-26 12:19:35
  */
@@ -37,6 +38,12 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
 
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String AUTH_CHECK_URL = "lb://mall-auth/internal/auth/check";
+
+    /** 后台管理员用户类型（与 mall-auth JwtUtil.USER_TYPE_ADMIN 约定一致） */
+    private static final String USER_TYPE_ADMIN = "ADMIN";
+
+    /** 后台管理路径前缀：仅 ADMIN 角色可访问（防 MEMBER 越权） */
+    private static final String ADMIN_PATH_PREFIX = "/api/admin";
 
     /** 白名单：登录注册/验证码/刷新/退出/找回密码/后台登录/骨架验证/接口文档/健康检查/前台商品浏览（免登录） */
     private static final String[] WHITE_LIST = {
@@ -68,13 +75,19 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
         return webClientConfig.webClientBuilder().build().post()
                 .uri(AUTH_CHECK_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue("{\"token\":\"" + token + "\"}")
+                .bodyValue(Map.of("token", token))
                 .retrieve()
                 .bodyToMono(Map.class)
                 .flatMap(body -> {
                     Object code = body.get("code");
                     if (code instanceof Number number && number.intValue() == 200) {
-                        return chain.filter(passUserContext(exchange, (Map<?, ?>) body.get("data")));
+                        Map<?, ?> user = (Map<?, ?>) body.get("data");
+                        // 后台路由角色校验：userType 非 ADMIN 拦截（买家 token 不可访问后台管理接口）
+                        if (path.startsWith(ADMIN_PATH_PREFIX)
+                                && !USER_TYPE_ADMIN.equals(user == null ? null : String.valueOf(user.get("userType")))) {
+                            return forbidden(exchange.getResponse(), "无权限访问后台管理接口");
+                        }
+                        return chain.filter(passUserContext(exchange, user));
                     }
                     return unauthorized(exchange.getResponse(), String.valueOf(body.get("message")));
                 })
@@ -114,11 +127,23 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
 
     /** 401 响应（与业务侧 Result 结构一致） */
     private Mono<Void> unauthorized(ServerHttpResponse response, String message) {
-        response.setStatusCode(HttpStatus.UNAUTHORIZED);
+        return writeError(response, HttpStatus.UNAUTHORIZED, 401,
+                StringUtils.hasText(message) ? message : "未登录或登录已过期");
+    }
+
+    /** 403 响应（与业务侧 Result 结构一致）：角色不符拦截 */
+    private Mono<Void> forbidden(ServerHttpResponse response, String message) {
+        return writeError(response, HttpStatus.FORBIDDEN, 403,
+                StringUtils.hasText(message) ? message : "无权限访问");
+    }
+
+    /** 统一错误响应（401/403） */
+    private Mono<Void> writeError(ServerHttpResponse response, HttpStatus status, int code, String message) {
+        response.setStatusCode(status);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("code", 401);
-        body.put("message", StringUtils.hasText(message) ? message : "未登录或登录已过期");
+        body.put("code", code);
+        body.put("message", message);
         body.put("data", null);
         body.put("timestamp", System.currentTimeMillis());
         try {

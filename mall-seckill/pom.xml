@@ -11,7 +11,7 @@
 
     <artifactId>mall-seckill</artifactId>
     <name>mall-seckill</name>
-    <description>秒杀服务（9000）：活动/库存预扣/Redis 排队/XXL-Job 预热执行器</description>
+    <description>秒杀服务（9000）：场次/商品配置、Redis 预热、Lua 扣减+限购、MQ 削峰异步下单、结果查询、Dubbo 核验/回补</description>
 
     <dependencies>
         <dependency>
@@ -19,10 +19,9 @@
             <artifactId>mall-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-                <dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-            
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -36,11 +35,50 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
         </dependency>
-        <!-- 实体/Mapper 契约（mall-mbg 生成：seckill_* 三表归属秒杀域） -->
+        <!-- 分页插件（场次/商品配置分页） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
+        <!-- 实体/Mapper 契约（mall-mbg 生成：seckill_session/seckill_product 归属秒杀域） -->
         <dependency>
             <groupId>com.mall</groupId>
             <artifactId>mall-mbg</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <!-- Feign 契约：调 product 校验 sku 库存/拉商品快照（秒杀配置与商品列表组装） -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+        <!-- MQ：秒杀削峰异步下单（SECKILL→ORDER，8.3） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-stream-rocketmq</artifactId>
+        </dependency>
+        <!-- Dubbo 3：核心链路 RPC（order 落单前核验预扣资格/关单回补，README 演进路线第二阶段） -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-dubbo-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo-spring-boot-starter</artifactId>
+        </dependency>
+        <!-- Sentinel：秒杀接口限流 + 热点参数限流（12.1，SCA BOM 管理版本） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
         </dependency>
         <!-- 接口文档 springdoc：doc.html -->
         <dependency>
@@ -57,7 +95,6 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-        <!-- TODO 秒杀章节补充：xxl-job-core（预热任务）、Redisson（分布式锁，若需要） -->
     </dependencies>
 
     <build>

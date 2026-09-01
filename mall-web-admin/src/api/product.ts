@@ -278,6 +278,14 @@ export function checkStock(data: { skuId: number; stock: number; remark?: string
   return request.put<void>('/admin/stock/check', data)
 }
 
+// ---------- SKU 搜索（阶段 7 秒杀商品配置选品） ----------
+
+export function searchSkuList(keyword: string) {
+  return request.get<
+    { id: number; skuCode: string; spuId: number; spuName: string; spec?: string; price?: number; stock?: number; status?: number }[]
+  >('/admin/sku/search', { params: { keyword } })
+}
+
 // ---------- 图片上传 ----------
 
 export function uploadImage(file: File) {

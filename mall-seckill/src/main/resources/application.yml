@@ -18,6 +18,43 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+    # RocketMQ（spring-cloud-stream binder）：秒杀削峰异步下单发送（StreamBridge 动态 destination，无需 binding）
+    stream:
+      rocketmq:
+        binder:
+          name-server: 127.0.0.1:9876
+
+# xxl-job 执行器（14.3 自动预热集中调度；@Scheduled 本地双通道兜底并存）
+xxl:
+  job:
+    admin:
+      addresses: http://127.0.0.1:9080/xxl-job-admin
+    accessToken: default_token
+    executor:
+      appname: mall-seckill
+      port: 9705
+      logpath: ./logs/xxl-job
+      logretentiondays: 7
+
+# Dubbo 3：核心链路 RPC（order 落单核验/关单回补经 Dubbo 调本服务）
+# 协议 Triple（HTTP/2 兼容 HTTP/1.1），端口按 README 端口总表：本地 20881～20891 递增（seckill=20890，容器内统一 20880）
+# 注：Boot 4 官方未声明适配，若启动异常可 dubbo.enabled=false 降级（order 侧自动切 Feign）
+dubbo:
+  application:
+    name: mall-seckill
+    logger: slf4j
+  protocol:
+    name: tri
+    port: 20890
+  registry:
+    address: nacos://127.0.0.1:8848
+  scan:
+    base-packages: com.mall.seckill.service.impl
+
+# Sentinel 限流（12.1）：规则由 SentinelConfig 启动时加载；dashboard 可选（本地 8858 有控制台时放开）
+# sentinel:
+#   transport:
+#     dashboard: 127.0.0.1:8858
 
 mybatis-plus:
   configuration:

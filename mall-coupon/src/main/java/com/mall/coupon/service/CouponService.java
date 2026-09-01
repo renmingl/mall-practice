@@ -12,9 +12,11 @@ import com.mall.mbg.entity.Orders;
 import com.mall.mbg.mapper.CouponMapper;
 import com.mall.mbg.mapper.CouponUserMapper;
 import com.mall.mbg.mapper.OrdersMapper;
+import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,15 +26,15 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
- * 优惠券服务：模板管理、领券（SETNX 幂等 + 条件更新防超领）、锁券/核销/退回、过期扫描、优惠计算
+ * 优惠券服务：模板管理、领券（Redisson 分布式锁 + 条件更新防超领）、锁券/核销/退回、过期扫描、优惠计算
  * 状态机：0未使用 → 1已锁定（下单占用）→ 2已使用；取消/超时关单 1→0；退款退回 2→0（过期置3）
  * 防超领：UPDATE coupon SET received_count=received_count+1 WHERE received_count &lt; total_count（原子条件更新）
  * @author renmingl
@@ -43,14 +45,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CouponService {
 
-    /** 领券幂等键（防同一用户并发重复领取；领取事务提交后删除，per_limit>1 时可再次领取） */
-    private static final String RECEIVE_ONCE_KEY = "coupon:receive:once:";
-    private static final long RECEIVE_ONCE_TTL_SECONDS = 30;
+    /** 领券分布式锁 key（Redisson：成员+券维度，防同一用户并发重复领取；事务提交后释放，per_limit>1 时可再次领取） */
+    private static final String RECEIVE_LOCK_KEY = "coupon:receive:lock:";
 
     private final CouponMapper couponMapper;
     private final CouponUserMapper couponUserMapper;
     private final OrdersMapper ordersMapper;
-    private final StringRedisTemplate redisTemplate;
+    private final RedissonClient redissonClient;
 
     // ==================== 后台模板管理 ====================
 
@@ -129,12 +130,19 @@ public class CouponService {
         return toPage(couponPage, memberId);
     }
 
-    /** 领券：SETNX 幂等防重复提交 + DB 条件更新防超领 + per_limit 限领校验 */
+    /** 领券：Redisson 分布式锁防重复提交 + DB 条件更新防超领 + per_limit 限领校验 */
     @Transactional(rollbackFor = Exception.class)
     public void receive(Long memberId, Long couponId) {
-        String onceKey = RECEIVE_ONCE_KEY + memberId + ":" + couponId;
-        Boolean locked = redisTemplate.opsForValue().setIfAbsent(onceKey, "1", Duration.ofSeconds(RECEIVE_ONCE_TTL_SECONDS));
-        if (!Boolean.TRUE.equals(locked)) {
+        // Redisson 锁（成员+券维度）：替代原 SETNX 幂等键；可重入 + 看门狗自动续期 + 服务宕机锁自动过期
+        RLock lock = redissonClient.getLock(RECEIVE_LOCK_KEY + memberId + ":" + couponId);
+        boolean locked;
+        try {
+            locked = lock.tryLock(1, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BizException("领券失败，请稍后再试");
+        }
+        if (!locked) {
             throw new BizException("操作太频繁，请稍后再试");
         }
         try {
@@ -148,14 +156,14 @@ public class CouponService {
             if (coupon.getUseEndTime().isBefore(LocalDateTime.now())) {
                 throw new BizException("优惠券已过期");
             }
-            // 每人限领校验（并发下以幂等键 + 插入兜底，练习项目可接受）
+            // 每人限领校验（并发下由分布式锁串行化：锁在事务提交后才释放，无 per_limit 超发窗口）
             Long received = couponUserMapper.selectCount(new LambdaQueryWrapper<CouponUser>()
                     .eq(CouponUser::getCouponId, couponId)
                     .eq(CouponUser::getMemberId, memberId));
             if (received >= coupon.getPerLimit()) {
                 throw new BizException("已达每人限领数量");
             }
-            // 原子条件更新防超领：received_count < total_count 才自增（并发抢券唯一入口）
+            // 原子条件更新防超领：received_count < total_count 才自增（并发抢券最后防线，锁失效时兜底）
             int rows = couponMapper.update(null, new UpdateWrapper<Coupon>()
                     .eq("id", couponId)
                     .eq("status", 1)
@@ -170,17 +178,24 @@ public class CouponService {
             couponUser.setStatus((byte) 0);
             couponUser.setReceiveTime(LocalDateTime.now());
             couponUserMapper.insert(couponUser);
-            // 事务提交后释放幂等键（提交前释放会放大并发窗口：双请求同时通过 per_limit 校验造成超发）
+            // 事务提交后释放锁（提交前释放会放大并发窗口：双请求同时通过 per_limit 校验造成超发）
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    redisTemplate.delete(onceKey);
+                    releaseLock(lock);
                 }
             });
         } catch (Exception e) {
-            // 失败立即释放，避免幂等键残留卡住再次领取
-            redisTemplate.delete(onceKey);
+            // 失败立即释放，避免锁残留卡住再次领取
+            releaseLock(lock);
             throw e;
+        }
+    }
+
+    /** 安全释放：仅释放当前线程持有的锁（防误删他人锁） */
+    private void releaseLock(RLock lock) {
+        if (lock.isHeldByCurrentThread()) {
+            lock.unlock();
         }
     }
 
@@ -340,7 +355,8 @@ public class CouponService {
         }
     }
 
-    /** 过期扫描：未使用且券已过有效期 → 置 3（兜底：领了不用的券定期清理） */
+    /** 过期扫描：未使用且券已过有效期 → 置 3（兜底：领了不用的券定期清理；xxl-job couponExpireScan + @Scheduled 双通道） */
+    @XxlJob("couponExpireScan")
     @Scheduled(cron = "0 0/5 * * * ?")
     public void expireTask() {
         List<CouponUser> pending = couponUserMapper.selectList(new LambdaQueryWrapper<CouponUser>()

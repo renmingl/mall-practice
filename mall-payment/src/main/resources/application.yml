@@ -24,6 +24,18 @@ spring:
         binder:
           name-server: 127.0.0.1:9876
 
+# xxl-job 执行器（阶段 6 兜底任务集中调度；@Scheduled 本地双通道兜底并存）
+xxl:
+  job:
+    admin:
+      addresses: http://127.0.0.1:9080/xxl-job-admin
+    accessToken: default_token
+    executor:
+      appname: mall-payment
+      port: 9702
+      logpath: ./logs/xxl-job
+      logretentiondays: 7
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true

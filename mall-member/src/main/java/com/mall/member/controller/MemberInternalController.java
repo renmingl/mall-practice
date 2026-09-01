@@ -7,12 +7,17 @@ import com.mall.api.member.UpdatePasswordByPhoneDTO;
 import com.mall.api.member.VerifyPasswordDTO;
 import com.mall.common.result.Result;
 import com.mall.member.service.MemberAccountService;
+import com.mall.member.service.MemberStatsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 /**
  * 会员内部接口（服务间调用，不经网关）：与 {@code MemberFeignClient} 契约路径一致
@@ -26,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberInternalController {
 
     private final MemberAccountService memberAccountService;
+    private final MemberStatsService memberStatsService;
 
     /** 注册：创建买家账号 */
     @PostMapping("/register")
@@ -44,5 +50,56 @@ public class MemberInternalController {
     public Result<Void> updatePasswordByPhone(@Valid @RequestBody UpdatePasswordByPhoneDTO request) {
         memberAccountService.updatePasswordByPhone(request);
         return Result.success();
+    }
+
+    // ==================== 运营数据（10.1 / 10.3，auth 登录写入 / admin 看板聚合） ====================
+
+    /** 登录成功记录在线 + 日活（auth 编排登录/注册后调用） */
+    @PostMapping("/record-active")
+    public Result<Void> recordActive(@RequestParam("memberId") Long memberId) {
+        memberStatsService.recordActive(memberId);
+        return Result.success();
+    }
+
+    /** 实时在线人数（10.1）：5 分钟窗口 */
+    @GetMapping("/stats/online")
+    public Result<Long> onlineCount() {
+        return Result.success(memberStatsService.onlineCount());
+    }
+
+    /** 日活（10.3）：date=yyyyMMdd，缺省今天 */
+    @GetMapping("/stats/dau")
+    public Result<Long> dau(@RequestParam(value = "date", required = false) String date) {
+        return Result.success(memberStatsService.dau(date));
+    }
+
+    /** 今日签到人数（看板） */
+    @GetMapping("/stats/checkin-today")
+    public Result<Long> checkinToday() {
+        return Result.success(memberStatsService.checkinToday());
+    }
+
+    /** 今日新增注册会员数（看板） */
+    @GetMapping("/stats/new-members")
+    public Result<Long> newMembersToday() {
+        return Result.success(memberStatsService.newMembersToday());
+    }
+
+    /** 指定会员当月签到天数（看板会员统计） */
+    @GetMapping("/stats/checkin-month")
+    public Result<Long> checkinMonthDays(@RequestParam("memberId") Long memberId,
+                                         @RequestParam(value = "month", required = false) String month) {
+        return Result.success(memberStatsService.checkinMonthDays(memberId, month));
+    }
+
+    /** 会员运营总览（看板聚合）：在线/日活/今日签到/今日新增 */
+    @GetMapping("/stats/summary")
+    public Result<Map<String, Object>> statsSummary() {
+        Map<String, Object> row = new java.util.LinkedHashMap<>();
+        row.put("online", memberStatsService.onlineCount());
+        row.put("dau", memberStatsService.dau(null));
+        row.put("checkinToday", memberStatsService.checkinToday());
+        row.put("newMembersToday", memberStatsService.newMembersToday());
+        return Result.success(row);
     }
 }

@@ -58,8 +58,17 @@ onMounted(verify)
 
     <!-- 阶段 3：商品中心入口 -->
     <van-cell-group inset title="商品中心">
+      <van-cell title="商品搜索" is-link to="/search" icon="search" />
       <van-cell title="商品列表" is-link to="/product/list" icon="shopping-cart-o" />
       <van-cell v-if="userStore.isLoggedIn" title="我的收藏" is-link to="/favorites" icon="star-o" />
+    </van-cell-group>
+
+    <!-- 阶段 7：限时秒杀与运营入口 -->
+    <van-cell-group inset title="限时秒杀">
+      <van-cell title="秒杀会场" is-link to="/seckill" icon="flash" />
+      <van-cell title="排行榜" is-link to="/rank" icon="award-o" />
+      <van-cell v-if="userStore.isLoggedIn" title="每日签到" is-link to="/checkin" icon="calendar-o" />
+      <van-cell v-if="userStore.isLoggedIn" title="浏览足迹" is-link to="/history" icon="eye-o" />
     </van-cell-group>
 
     <!-- 阶段 4：购物车与优惠券入口（需登录） -->

@@ -30,7 +30,11 @@ const router = createRouter({
         { path: 'coupon-template', name: 'coupon-template', component: () => import('@/views/coupon/CouponTemplateView.vue'), meta: { title: '优惠券模板' } },
         { path: 'order', name: 'order', component: () => import('@/views/order/OrderView.vue'), meta: { title: '订单管理' } },
         { path: 'refund', name: 'refund', component: () => import('@/views/refund/RefundView.vue'), meta: { title: '退款管理' } },
-        { path: 'comment', name: 'comment', component: () => import('@/views/comment/CommentView.vue'), meta: { title: '评价管理' } }
+        { path: 'comment', name: 'comment', component: () => import('@/views/comment/CommentView.vue'), meta: { title: '评价管理' } },
+        // 阶段 7：运营数据看板 + 秒杀配置（场次/商品同一页面按路径定位 tab；菜单由 admin_menu 种子控制）
+        { path: 'dashboard', name: 'dashboard', component: () => import('@/views/dashboard/DashboardView.vue'), meta: { title: '数据看板' } },
+        { path: 'seckill/session', name: 'seckill-session', component: () => import('@/views/seckill/SeckillAdminView.vue'), meta: { title: '秒杀场次' } },
+        { path: 'seckill/product', name: 'seckill-product', component: () => import('@/views/seckill/SeckillAdminView.vue'), meta: { title: '秒杀商品' } }
       ]
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') }

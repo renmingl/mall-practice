@@ -70,6 +70,18 @@
             <artifactId>spring-cloud-stream</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- xxl-job 执行器封装（XxlJobAutoConfiguration 条件装配）：随 common 传递，
+             只有配置了 xxl.job.admin.addresses 的服务才注册执行器（order/payment/product/coupon/seckill） -->
+        <dependency>
+            <groupId>com.xuxueli</groupId>
+            <artifactId>xxl-job-core</artifactId>
+        </dependency>
+        <!-- Redisson 分布式锁封装（RedissonAutoConfiguration 条件装配）：随 common 传递，
+             需 RedissonClient 的服务（coupon 领券）直接注入使用；纯核心库不依赖 Spring Boot 版本，无 Boot 4 适配风险 -->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+        </dependency>
         <!-- 本地消息表组件（TxMessageService）：依赖 mall-mbg 的 TxMessageMapper，optional 不传递；
              只有显式依赖 mall-mbg 且 @MapperScan 扫描到 TxMessageMapper 的服务才装配 -->
         <dependency>

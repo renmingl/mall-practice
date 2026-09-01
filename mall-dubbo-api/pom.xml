@@ -11,12 +11,14 @@
 
     <artifactId>mall-dubbo-api</artifactId>
     <name>mall-dubbo-api</name>
-    <description>Dubbo 契约模块：核心链路的 Dubbo 服务接口 + DTO（三阶段演进的第三阶段）</description>
+    <description>Dubbo 契约模块：核心链路的 Dubbo 服务接口 + DTO（阶段 7 秒杀核验/回补）</description>
 
-    <!--
-        TODO 第二阶段引入 Dubbo 时补充依赖（dubbo-spring-boot-starter）。
-        注意：Dubbo 官方版本表（2025-11）显示 3.3.x 仅兼容 Spring Boot 1.x~3.x，
-        尚无 Boot 4 适配公告。引入前需验证 Dubbo 与 Boot 4 的兼容性，
-        若暂不支持则本模块延后启用（演进路线第一阶段本就全 Feign，不影响全链路打通）。
-    -->
+    <dependencies>
+        <!-- 契约模块不依赖 dubbo starter（注解在实现侧），仅需 Lombok 生成 DTO 访问器 -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
 </project>

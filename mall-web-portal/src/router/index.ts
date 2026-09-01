@@ -27,6 +27,8 @@ const router = createRouter({
     // 阶段 3：商品列表/详情（公开）与我的收藏（需登录）
     { path: '/product/list', name: 'product-list', component: () => import('@/views/ProductListView.vue') },
     { path: '/product/:id', name: 'product-detail', component: () => import('@/views/ProductDetailView.vue') },
+    // 阶段 8：ES 商品搜索（联想/高亮，公开）
+    { path: '/search', name: 'search', component: () => import('@/views/SearchView.vue') },
     {
       path: '/favorites',
       name: 'favorites',
@@ -100,6 +102,21 @@ const router = createRouter({
       path: '/comment',
       name: 'comment',
       component: () => import('@/views/CommentView.vue'),
+      meta: { requiresAuth: true }
+    },
+    // 阶段 7：秒杀与运营（会场/排行榜公开，签到/足迹需登录）
+    { path: '/seckill', name: 'seckill', component: () => import('@/views/SeckillView.vue') },
+    { path: '/rank', name: 'rank', component: () => import('@/views/RankView.vue') },
+    {
+      path: '/checkin',
+      name: 'checkin',
+      component: () => import('@/views/CheckinView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/history',
+      name: 'history',
+      component: () => import('@/views/HistoryView.vue'),
       meta: { requiresAuth: true }
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') }

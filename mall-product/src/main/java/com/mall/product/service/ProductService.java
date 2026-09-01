@@ -3,6 +3,8 @@ package com.mall.product.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.mall.common.exception.BizException;
 import com.mall.mbg.entity.ProductBrand;
 import com.mall.mbg.entity.ProductCategory;
@@ -14,6 +16,7 @@ import com.mall.mbg.mapper.ProductSkuMapper;
 import com.mall.mbg.mapper.ProductSpuMapper;
 import com.mall.product.dto.SpuSaveDTO;
 import com.mall.product.util.ProductJsonUtil;
+import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,7 +34,8 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 商品服务：SPU/SKU 维护、上下架、前台列表/详情、缓存三防（场景 2.2/2.3/2.4/2.5）
+ * 商品服务：SPU/SKU 维护、上下架、前台列表/详情、多级缓存（场景 2.2/2.3/2.4/2.5、13.3）
+ * 多级缓存：L1 Caffeine 本地（60s 短 TTL）→ L2 Redis（随机 TTL）→ L3 DB；双清保一致
  * 缓存三防：穿透=空值短缓存；击穿=Redis SETNX 互斥锁；雪崩=TTL 随机偏移
  * @author renmingl
  * @date 2026-08-27 10:30:40
@@ -45,12 +49,22 @@ public class ProductService {
     private static final String LOCK_KEY = "product:detail:lock:";
     private static final String NULL_MARK = "NULL";
     private static final long LOCK_WAIT_MS = 3000L;
+    private static final long LOCAL_TTL_SECONDS = 60L;
+    private static final long LOCAL_MAX_SIZE = 5000L;
+
+    /** L1 本地缓存（Caffeine 多级缓存 13.3）：热点详情短 TTL，以 L2 Redis 为准；增删改走 evictDetailCache 双清 */
+    private final Cache<Long, Map<String, Object>> localCache = Caffeine.newBuilder()
+            .maximumSize(LOCAL_MAX_SIZE)
+            .expireAfterWrite(Duration.ofSeconds(LOCAL_TTL_SECONDS))
+            .recordStats()
+            .build();
 
     private final ProductSpuMapper spuMapper;
     private final ProductSkuMapper skuMapper;
     private final ProductCategoryMapper categoryMapper;
     private final ProductBrandMapper brandMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Value("${mall.product.detail-cache-ttl:1800}")
     private long cacheTtl;
@@ -217,18 +231,25 @@ public class ProductService {
                         .orderByDesc(ProductSpu::getSort, ProductSpu::getId));
     }
 
-    /** 商品详情：缓存三防（穿透=空值短缓存 / 击穿=互斥锁 / 雪崩=TTL 随机偏移） */
+    /** 商品详情：多级缓存（13.3 L1 Caffeine → L2 Redis）+ 缓存三防（穿透=空值短缓存 / 击穿=互斥锁 / 雪崩=TTL 随机偏移） */
     public Map<String, Object> detail(Long spuId) {
-        ObjectMapper mapper = new ObjectMapper();
         String key = DETAIL_KEY + spuId;
         try {
-            // 1. 先查缓存
+            // 0. L1 本地缓存（Caffeine）命中直接返回，热点详情不再重复走 Redis
+            Map<String, Object> local = localCache.getIfPresent(spuId);
+            if (local != null) {
+                return local;
+            }
+            // 1. L2 Redis 缓存
             String cached = stringRedisTemplate.opsForValue().get(key);
             if (cached != null) {
                 if (NULL_MARK.equals(cached)) {
                     throw new BizException("商品不存在");
                 }
-                return mapper.readValue(cached, Map.class);
+                Map<String, Object> hit = objectMapper.readValue(cached, Map.class);
+                // 回填 L1（下个请求 L1 直出）
+                localCache.put(spuId, hit);
+                return hit;
             }
             // 2. 缓存未命中：互斥锁防击穿（SETNX，锁持有 10s；拿不到锁短暂等待后重查缓存）
             String lockKey = LOCK_KEY + spuId;
@@ -241,7 +262,9 @@ public class ProductService {
                         if (NULL_MARK.equals(cached)) {
                             throw new BizException("商品不存在");
                         }
-                        return mapper.readValue(cached, Map.class);
+                        Map<String, Object> hit = objectMapper.readValue(cached, Map.class);
+                        localCache.put(spuId, hit);
+                        return hit;
                     }
                     Map<String, Object> detail = buildDetail(spuId);
                     if (detail == null) {
@@ -251,7 +274,9 @@ public class ProductService {
                     }
                     // 雪崩：TTL 随机偏移（基础 TTL + 0~jitter 随机秒）
                     long ttl = cacheTtl + ThreadLocalRandom.current().nextLong(0, cacheTtlJitter + 1);
-                    stringRedisTemplate.opsForValue().set(key, mapper.writeValueAsString(detail), Duration.ofSeconds(ttl));
+                    stringRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(detail), Duration.ofSeconds(ttl));
+                    // 回填 L1 本地缓存
+                    localCache.put(spuId, detail);
                     return detail;
                 } finally {
                     stringRedisTemplate.delete(lockKey);
@@ -266,7 +291,9 @@ public class ProductService {
                     if (NULL_MARK.equals(cached)) {
                         throw new BizException("商品不存在");
                     }
-                    return mapper.readValue(cached, Map.class);
+                    Map<String, Object> hit = objectMapper.readValue(cached, Map.class);
+                    localCache.put(spuId, hit);
+                    return hit;
                 }
             }
             // 超时兜底：直查库（学习项目可接受，生产建议改异步重建）
@@ -296,9 +323,9 @@ public class ProductService {
     }
 
     // ==================== 缓存预热（2.5） ====================
-    // xxl-job-core 依赖在订单/秒杀阶段引入，本阶段用 @Scheduled 定时 + 手动触发接口实现预热；
-    // xxl-job 接入后可将 preload() 暴露为执行器任务并移除 @Scheduled
+    // xxl-job 已接入：productPreload 为执行器任务，@Scheduled 保留作本地双通道兜底（幂等重复执行无害）
 
+    @XxlJob("productPreload")
     @Scheduled(cron = "0 0 0/1 * * ?")
     public void scheduledPreload() {
         preload();
@@ -306,7 +333,6 @@ public class ProductService {
 
     /** 预热：热销 Top N 详情写缓存（TTL 与正常详情一致，带随机偏移） */
     public int preload() {
-        ObjectMapper mapper = new ObjectMapper();
         int count = 0;
         for (ProductSpu spu : hotList(preloadTop)) {
             try {
@@ -314,7 +340,9 @@ public class ProductService {
                 if (detail != null) {
                     long ttl = cacheTtl + ThreadLocalRandom.current().nextLong(0, cacheTtlJitter + 1);
                     stringRedisTemplate.opsForValue().set(DETAIL_KEY + spu.getId(),
-                            mapper.writeValueAsString(detail), Duration.ofSeconds(ttl));
+                            objectMapper.writeValueAsString(detail), Duration.ofSeconds(ttl));
+                    // 预热同时回填 L1 本地缓存
+                    localCache.put(spu.getId(), detail);
                     count++;
                 }
             } catch (Exception e) {
@@ -350,8 +378,9 @@ public class ProductService {
         return data;
     }
 
-    /** 删除详情缓存（商品增删改/上下架时调用，保证缓存一致性：先更 DB 再删缓存） */
+    /** 删除详情缓存（商品增删改/上下架时调用，保证缓存一致性：先更 DB 再双清 L1 本地 + L2 Redis） */
     public void evictDetailCache(Long spuId) {
+        localCache.invalidate(spuId);
         stringRedisTemplate.delete(DETAIL_KEY + spuId);
     }
 }

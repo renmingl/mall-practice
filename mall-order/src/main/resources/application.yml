@@ -18,11 +18,11 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
-    # RocketMQ（spring-cloud-stream binder）：延迟关单消费者 + 退款回写订单消费者
+    # RocketMQ（spring-cloud-stream binder）：延迟关单消费者 + 退款回写订单消费者 + 秒杀削峰落单消费者 + 死信兜底
     stream:
       # 多函数必须显式声明绑定（否则消费者不注册）
       function:
-        definition: orderCloseConsumer,orderRefundConsumer
+        definition: orderCloseConsumer,orderRefundConsumer,seckillOrderConsumer,dlqOrderCloseConsumer,dlqOrderRefundConsumer,dlqSeckillOrderConsumer
       bindings:
         orderCloseConsumer-in-0:
           destination: mall-order-close-topic
@@ -34,6 +34,27 @@ spring:
           group: order-refund-group
           consumer:
             max-attempts: 3
+        seckillOrderConsumer-in-0:
+          destination: mall-seckill-order-topic
+          group: seckill-order-group
+          consumer:
+            max-attempts: 3
+        # 死信：重试耗尽后 RocketMQ 自动投递 %DLQ%{group}（8.5），落库 mq_dead_letter 供人工介入
+        dlqOrderCloseConsumer-in-0:
+          destination: "%DLQ%order-close-group"
+          group: dlq-order-close-group
+          consumer:
+            max-attempts: 1
+        dlqOrderRefundConsumer-in-0:
+          destination: "%DLQ%order-refund-group"
+          group: dlq-order-refund-group
+          consumer:
+            max-attempts: 1
+        dlqSeckillOrderConsumer-in-0:
+          destination: "%DLQ%seckill-order-group"
+          group: dlq-seckill-order-group
+          consumer:
+            max-attempts: 1
       rocketmq:
         binder:
           name-server: 127.0.0.1:9876
@@ -44,6 +65,38 @@ spring:
           orderRefundConsumer-in-0:
             consumer:
               delay-level-when-next-consume: 8
+          seckillOrderConsumer-in-0:
+            consumer:
+              delay-level-when-next-consume: 8
+
+# xxl-job 执行器（阶段 5/6 兜底任务集中调度；@Scheduled 本地双通道兜底并存）
+xxl:
+  job:
+    admin:
+      addresses: http://127.0.0.1:9080/xxl-job-admin
+    accessToken: default_token
+    executor:
+      appname: mall-order
+      port: 9701
+      logpath: ./logs/xxl-job
+      logretentiondays: 7
+
+# Dubbo 3（阶段 7 演进路线第二阶段）：秒杀落单核验/关单回补经 Dubbo 调 seckill；
+# Boot 4 官方未声明适配，若启动异常设 dubbo.enabled=false 自动降级 Feign（mall.seckill.remote 随之失效）
+dubbo:
+  enabled: true
+  application:
+    name: mall-order
+    logger: slf4j
+  registry:
+    address: nacos://127.0.0.1:8848
+  consumer:
+    check: false
+
+# 秒杀远程调用方式：feign（默认，零风险）/ dubbo（演进路线第二阶段，需 dubbo.enabled=true）
+mall:
+  seckill:
+    remote: feign
 
 # Seata AT：下单编排为全局事务发起方（product 扣库存 / coupon 锁券为参与方）；file registry 直连本地 TC（docker-compose 已就绪）
 seata:

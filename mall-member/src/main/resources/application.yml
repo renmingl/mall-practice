@@ -18,7 +18,7 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
-    # RocketMQ（spring-cloud-stream binder）：支付返积分（PAID）/ 退款扣回（REFUND）消费
+    # RocketMQ（spring-cloud-stream binder）：支付返积分（PAID）/ 退款扣回（REFUND）消费 + 死信兜底
     stream:
       bindings:
         pointsConsumer-in-0:
@@ -26,6 +26,12 @@ spring:
           group: member-points-group
           consumer:
             max-attempts: 3
+        # 死信：重试耗尽后 RocketMQ 自动投递 %DLQ%member-points-group（8.5），落库 mq_dead_letter 供人工介入
+        dlqPointsConsumer-in-0:
+          destination: "%DLQ%member-points-group"
+          group: dlq-member-points-group
+          consumer:
+            max-attempts: 1
       rocketmq:
         binder:
           name-server: 127.0.0.1:9876

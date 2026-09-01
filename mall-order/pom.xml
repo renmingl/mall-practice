@@ -19,10 +19,9 @@
             <artifactId>mall-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-                <dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-            
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -67,6 +66,21 @@
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-stream-rocketmq</artifactId>
         </dependency>
+        <!-- Dubbo 3：秒杀落单核验预扣资格 / 关单回补（README 演进路线第二阶段；dubbo.enabled=false 时自动降级 Feign） -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-dubbo-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Redis：秒杀结果回写 / 秒杀订单映射（关单兑底扫描用），与 seckill 侧同一 Redis 实例 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo-spring-boot-starter</artifactId>
+        </dependency>
         <!-- Seata AT：下单编排为全局事务发起方（product 扣库存 / coupon 锁券为参与方） -->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
@@ -87,8 +101,6 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-        <!-- TODO 事务章节补充：seata（SCA BOM 管理 2.5.0） -->
-        <!-- TODO 定时任务章节补充：xxl-job-core（父工程已管理版本） -->
     </dependencies>
 
     <build>

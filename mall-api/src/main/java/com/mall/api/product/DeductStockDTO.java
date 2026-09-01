@@ -5,7 +5,7 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
- * 扣减库存请求（内部契约 DTO：order 下单调用，change_type=1 下单扣减）
+ * 扣减库存请求（内部契约 DTO：order 下单调用，change_type=1 下单扣减 / 4 秒杀扣减）
  * @author renmingl
  * @date 2026-08-31 10:00:00
  */
@@ -22,4 +22,7 @@ public class DeductStockDTO implements Serializable {
 
     /** 扣减数量（正整数） */
     private Integer quantity;
+
+    /** 变动类型：1 下单扣减（默认） / 4 秒杀扣减（异步落单后扣 sku.stock，同时累计销量榜） */
+    private Integer changeType = 1;
 }

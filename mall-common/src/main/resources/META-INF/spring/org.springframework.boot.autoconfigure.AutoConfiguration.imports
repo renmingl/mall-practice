@@ -1,3 +1,5 @@
 com.mall.common.config.CommonAutoConfiguration
 com.mall.common.config.MqAutoConfiguration
 com.mall.common.config.Jackson2ObjectMapperAutoConfiguration
+com.mall.common.config.XxlJobAutoConfiguration
+com.mall.common.config.RedissonAutoConfiguration

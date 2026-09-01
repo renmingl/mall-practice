@@ -29,6 +29,11 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
+        <!-- Redis Reactive（阶段 8 13.4 网关限流）：RequestRateLimiter 默认 RedisRateLimiter 令牌桶实现 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
         <!-- 接口文档 springdoc（WebFlux 栈）：doc.html -->
         <dependency>
             <groupId>org.springdoc</groupId>

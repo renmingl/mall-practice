@@ -28,6 +28,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- Redis：阶段 7 运营数据（PV/UV/点赞/足迹/销量榜）+ 阶段 8 多级缓存（Caffeine + Redis 二级） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <!-- Caffeine 本地缓存（阶段 8 13.3）：商品详情 L1 本地缓存，与 Redis L2 构成多级缓存；版本由 spring-boot-dependencies 管理 -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>

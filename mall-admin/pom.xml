@@ -19,7 +19,13 @@
             <artifactId>mall-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-                <dependency>
+        <!-- Feign 契约：数据看板聚合调 order/member/product 内部统计接口（阶段 7 场景 10） -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             

@@ -4,16 +4,27 @@ server:
 spring:
   application:
     name: mall-search
-  data:
-    redis:
-      host: 127.0.0.1
-      port: 6379
-      password: 123456  # 作者本地账密（与 docker-compose 的 redis 密码一致），请按各自环境修改
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/mall?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root      # 作者本地账密，请按各自环境修改
+    password: 123456    # 作者本地账密，请按各自环境修改
   cloud:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
-  # TODO 搜索章节补充：elasticsearch.uris=http://127.0.0.1:9200
+
+# ES Java Client（阶段 8 13.2）：docker compose --profile search 启动，默认本机 9200
+elasticsearch:
+  uris: http://127.0.0.1:9200
+  # Canal binlog 同步（阶段 8 13.1）：增量同步开关与连接参数，见 CanalSyncService
+  canal:
+    enabled: false
+    host: 127.0.0.1
+    port: 11111
+    destination: example
+    username: ""
+    password: ""
 
 # 接口文档：doc.html（springdoc）
 springdoc:

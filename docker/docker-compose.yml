@@ -1,5 +1,7 @@
 # ============================================================
 # mall-practice 中间件编排文件（按需启动版）
+# 本文件位于 docker/ 目录：docker-compose.yml 与 .env、各中间件配置文件（canal/、rocketmq/）统一放在这里，
+# compose 会自动读取同目录的 .env（无需 --env-file 指定）；所有 compose 命令请在 docker/ 目录下执行。
 #
 # 默认只启动 3 个基础中间件 Nacos + MySQL + Redis（合计约 1GB 内存）：
 #   命令：docker compose up -d
@@ -78,7 +80,7 @@ services:
       - "10911:10911"  # 客户端连接端口
     volumes:
       # brokerIP1=127.0.0.1 保证宿主机客户端经端口映射可达 Broker
-      - ./docker/rocketmq/broker.conf:/home/rocketmq/rocketmq-5.3.2/conf/broker.conf
+      - ./rocketmq/broker.conf:/home/rocketmq/rocketmq-5.3.2/conf/broker.conf
       # 消息存储（commitlog/consumequeue）持久化，容器重建不丢消息
       - ${DOCKER_DATA_DIR}/rocketmq-broker:/home/rocketmq/store
     command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/rocketmq-5.3.2/conf/broker.conf
@@ -129,6 +131,23 @@ services:
     volumes:
       # 索引数据持久化，容器重建不丢索引
       - ${DOCKER_DATA_DIR}/elasticsearch:/usr/share/elasticsearch/data
+    restart: unless-stopped
+
+  # Canal Server：MySQL binlog 增量同步（阶段 8 13.1 商品索引增量同步，mall-search 消费端可选启用）
+  # 注意：当前使用容器版 MySQL（master.address=mysql:3306）；若改用本机 MySQL，需将
+  #       canal/instance.properties 的 master.address 改为 host.docker.internal:3306
+  #       并确保 MySQL 开启 binlog（ROW 格式，MySQL 8 默认开启）
+  canal-server:
+    image: canal/canal-server:v1.1.7
+    container_name: mall-canal
+    profiles: ["search"]
+    depends_on:
+      - mysql
+    ports:
+      - "11111:11111"  # canal client 连接端口（mall-search 的 elasticsearch.canal.port 指向）
+    volumes:
+      # 实例配置：订阅 mall 库全部表 + 连接 MySQL 账号密码（example 实例）
+      - ./canal/instance.properties:/home/admin/canal-server/conf/example/instance.properties
     restart: unless-stopped
 
   # ---------- 任务调度 ----------

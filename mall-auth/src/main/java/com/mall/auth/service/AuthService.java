@@ -51,6 +51,7 @@ public class AuthService {
             throw new BizException(result.getCode(), result.getMessage());
         }
         log.info("注册成功并签发令牌：username={}", request.getUsername());
+        recordActive(result.getData());
         return buildLoginResponse(result.getData(), JwtUtil.USER_TYPE_MEMBER, null);
     }
 
@@ -69,6 +70,7 @@ public class AuthService {
             throw new BizException(verifyResult.getMessage());
         }
         log.info("买家登录成功：username={}", request.getUsername());
+        recordActive(verifyResult.getAccount());
         return buildLoginResponse(verifyResult.getAccount(), JwtUtil.USER_TYPE_MEMBER, null);
     }
 
@@ -123,6 +125,18 @@ public class AuthService {
             throw new BizException(result.getCode(), result.getMessage());
         }
         log.info("找回密码成功：phone={}", request.getPhone());
+    }
+
+    /** 登录/注册成功记录在线 + 日活（10.1/10.3，member 侧 Redis 统计；失败不阻断登录） */
+    private void recordActive(MemberAccountDTO account) {
+        if (account == null || account.getId() == null) {
+            return;
+        }
+        try {
+            memberFeignClient.recordActive(account.getId());
+        } catch (Exception e) {
+            log.warn("记录在线/日活失败 memberId={}", account.getId(), e);
+        }
     }
 
     /** 组装登录响应（买家 userType=MEMBER；后台登录传 perms，见 AdminAuthService） */

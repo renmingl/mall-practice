@@ -7,10 +7,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 订单服务内部契约（product 评价校验、payment 支付状态回写/退款校验调用）
  * 状态回写均为条件更新（幂等）：仅当订单处于目标前置状态时才流转，重复调用不产生副作用
+ * 运营数据（10.4）：今日订单概览 / 近 7 天订单趋势（admin 看板聚合）
  * @author renmingl
  * @date 2026-08-31 10:00:00
  */
@@ -39,4 +41,12 @@ public interface OrderFeignClient {
     /** 整单退款成功回写：1/2/3→5已退款（payment 退款成功后调用，幂等） */
     @PostMapping("/mark-refunded")
     Result<Void> markRefunded(@RequestParam("orderSn") String orderSn);
+
+    /** 今日订单概览（看板：今日订单数 / 已支付销售额 / 秒杀订单数） */
+    @GetMapping("/stats/today")
+    Result<Map<String, Object>> todayStats();
+
+    /** 近 7 天订单趋势（看板：每天订单数 + 已支付销售额） */
+    @GetMapping("/stats/trend")
+    Result<List<Map<String, Object>>> trend7d();
 }

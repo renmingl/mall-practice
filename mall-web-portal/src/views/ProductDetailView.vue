@@ -11,6 +11,7 @@ import {
   type Sku
 } from '@/api/product'
 import { addToCart } from '@/api/cart'
+import { getLikeCount, getLikeStatus, likeSpu, trackView, unlikeSpu } from '@/api/seckill'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -23,6 +24,11 @@ const detail = ref<ProductDetail | null>(null)
 const activeSku = ref<Sku | null>(null)
 const favorited = ref(false)
 const favoriteLoading = ref(false)
+
+// 运营数据：点赞（10.5）+ 浏览埋点（10.2）
+const liked = ref(false)
+const likeCount = ref(0)
+const likeLoading = ref(false)
 
 /** 默认选中第一个启用 SKU */
 const price = computed(() => activeSku.value?.price ?? detail.value?.skuList?.[0]?.price ?? 0)
@@ -74,6 +80,44 @@ async function loadFavoriteStatus() {
   }
 }
 
+/** 点赞状态（未登录不查询，仅展示公开计数） */
+async function loadLikeStatus() {
+  try {
+    likeCount.value = await getLikeCount(spuId)
+  } catch {
+    likeCount.value = 0
+  }
+  if (!userStore.isLoggedIn) return
+  try {
+    liked.value = await getLikeStatus(spuId)
+  } catch {
+    liked.value = false
+  }
+}
+
+/** 点赞切换（需登录；Set 天然幂等） */
+async function toggleLike() {
+  if (!userStore.isLoggedIn) {
+    showToast('请先登录')
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  likeLoading.value = true
+  try {
+    if (liked.value) {
+      await unlikeSpu(spuId)
+      liked.value = false
+      likeCount.value = Math.max(0, likeCount.value - 1)
+    } else {
+      await likeSpu(spuId)
+      liked.value = true
+      likeCount.value += 1
+    }
+  } finally {
+    likeLoading.value = false
+  }
+}
+
 /** 阶段 4：加入购物车（需登录；加购默认勾选） */
 async function onAddToCart() {
   if (!userStore.isLoggedIn) {
@@ -107,6 +151,9 @@ async function onBuyNow() {
 onMounted(() => {
   load()
   loadFavoriteStatus()
+  // 浏览埋点（PV + UV + 浏览排行 + 足迹），失败不影响详情页
+  trackView(spuId).catch(() => {})
+  loadLikeStatus()
 })
 </script>
 
@@ -166,6 +213,7 @@ onMounted(() => {
     <!-- 底部操作栏 -->
     <van-action-bar safe-area-inset-bottom>
       <van-action-bar-icon :icon="favorited ? 'star' : 'star-o'" :color="favorited ? '#ee0a24' : '#646566'" :loading="favoriteLoading" text="收藏" @click="toggleFavorite" />
+      <van-action-bar-icon :icon="liked ? 'good-job' : 'good-job-o'" :color="liked ? '#ee0a24' : '#646566'" :loading="likeLoading" :text="`点赞 ${likeCount}`" @click="toggleLike" />
       <van-action-bar-button type="warning" text="加入购物车" @click="onAddToCart" />
       <van-action-bar-button type="danger" text="立即购买" @click="onBuyNow" />
     </van-action-bar>

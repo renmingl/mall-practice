@@ -288,10 +288,16 @@ CREATE TABLE `product_stock_log` (
   `stock_before` INT         NOT NULL COMMENT '变动前库存',
   `stock_after`  INT         NOT NULL COMMENT '变动后库存',
   `create_time`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `idem_key`     VARCHAR(192) GENERATED ALWAYS AS (
+                   CASE WHEN `change_type` IN (1,2,3,4,6,9)
+                        THEN CONCAT(`biz_sn`, ':', `sku_id`, ':', `change_type`)
+                        ELSE NULL END
+                 ) STORED COMMENT '幂等键（生成列）：扣减/回补类流水按 biz_sn+sku+类型唯一；采购入库(5)/盘点(7)可重复为 NULL 不参与约束',
   PRIMARY KEY (`id`),
   KEY `idx_sku_id` (`sku_id`),
-  KEY `idx_biz_sn` (`biz_sn`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='库存流水表（扣减/回补/采购入库/退货入库/盘点对账，防超卖审计）';
+  KEY `idx_biz_sn` (`biz_sn`),
+  UNIQUE KEY `uk_biz_sku_type` (`idem_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='库存流水表（扣减/回补/采购入库/退货入库/盘点对账，防超卖审计；幂等唯一索引防 MQ 重复投递重复流水）';
 
 CREATE TABLE `product_comment` (
   `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '评价ID',
@@ -402,6 +408,18 @@ CREATE TABLE `tx_message` (
   UNIQUE KEY `uk_biz_id` (`biz_id`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='本地消息表（事务消息/最终一致性）';
+
+CREATE TABLE `mq_dead_letter` (
+  `id`             BIGINT        NOT NULL AUTO_INCREMENT COMMENT '死信ID',
+  `consumer_group` VARCHAR(64)   NOT NULL COMMENT '消费组（消费重试耗尽进入 %DLQ%{group} 主题的原始消费组）',
+  `topic`          VARCHAR(128)  DEFAULT NULL COMMENT '主题（%DLQ%{group} 死信主题名）',
+  `message_body`   TEXT          COMMENT '消息体（原始消息内容）',
+  `error_info`     VARCHAR(1024) DEFAULT NULL COMMENT '失败原因（消费异常信息）',
+  `status`         TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0待处理 1已处理',
+  `create_time`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入队时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_group_status` (`consumer_group`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='MQ死信表（8.5 死信队列落库，人工介入/补偿）';
 
 -- ------------------------------------------------------------
 -- 后台管理域：管理员账号体系（归属 mall-auth 认证权限服务）——RBAC 五表
@@ -552,6 +570,21 @@ INSERT INTO `admin_menu` (`parent_id`, `name`, `type`, `path`, `perms`, `icon`, 
 (58, '退款管理', 2, '/refund', 'refund:list', NULL, 2, 1),
 (61, '退款审核', 3, NULL, 'refund:audit', NULL, 1, 1),
 (61, '确认退货', 3, NULL, 'refund:confirmReturn', NULL, 2, 1);
+
+-- 阶段 7 菜单（数据看板 + 秒杀管理；parent_id 沿用顺序插入的自增 ID，勿调整顺序）
+INSERT INTO `admin_menu` (`parent_id`, `name`, `type`, `path`, `perms`, `icon`, `sort`, `status`) VALUES
+(0, '数据看板', 2, '/dashboard', 'dashboard:view', 'dataAnalysis', 5, 1),
+(0, '秒杀管理', 1, '/seckill', NULL, 'Timer', 6, 1),
+(65, '秒杀场次', 2, '/seckill/session', 'seckill:session:list', NULL, 1, 1),
+(66, '场次新增', 3, NULL, 'seckill:session:add', NULL, 1, 1),
+(66, '场次修改', 3, NULL, 'seckill:session:update', NULL, 2, 1),
+(66, '场次启停', 3, NULL, 'seckill:session:status', NULL, 3, 1),
+(66, '库存预热', 3, NULL, 'seckill:session:preheat', NULL, 4, 1),
+(65, '秒杀商品', 2, '/seckill/product', 'seckill:product:list', NULL, 2, 1),
+(71, '秒杀商品新增', 3, NULL, 'seckill:product:add', NULL, 1, 1),
+(71, '秒杀商品修改', 3, NULL, 'seckill:product:update', NULL, 2, 1),
+(71, '秒杀商品启停', 3, NULL, 'seckill:product:status', NULL, 3, 1),
+(71, '秒杀商品删除', 3, NULL, 'seckill:product:delete', NULL, 4, 1);
 
 -- 超级管理员绑定全部菜单权限（关联表自增 ID 不指定，靠 SELECT 防手滑写错）
 INSERT INTO `admin_role_menu` (`role_id`, `menu_id`)
