@@ -60,12 +60,12 @@
 
 ### 业务篇
 
-- [业务表设计总览](#业务表设计总览)
-- [两平台功能菜单总览](#两平台功能菜单总览)
-  - [管理后台（mall-admin）](#管理后台mall-admin)
-  - [前台商城（mall-portal）](#前台商城mall-portal)
-- [电商技术场景清单](#电商技术场景清单)
-- [开发排期计划](#开发排期计划)
+  - [业务表设计总览](#业务表设计总览)
+  - [两平台功能菜单总览](#两平台功能菜单总览)
+    - [管理后台（mall-admin）](#管理后台mall-admin)
+    - [前台商城（mall-portal）](#前台商城mall-portal)
+  - [电商技术场景清单](#电商技术场景清单)
+  - [开发排期计划](#开发排期计划)
 
 ## 快速开始
 
@@ -79,29 +79,29 @@
 
 | 组件 | JVM/堆配置 | 实际占用估算 | 说明 |
 |---|---|---|---|
-| Nacos（注册/配置中心） | 256MB | ~0.5GB | 3.x 含内嵌 Derby |
-| MySQL 8.3 | 默认 | ~0.5GB | 容器默认缓冲池 |
-| Redis 7.2（AOF 持久化） | — | ~0.2GB | |
-| RocketMQ Namesrv | 256MB | ~0.4GB | |
-| RocketMQ Broker | 512MB | ~0.8GB | commitlog 页缓存占用偏高 |
-| RocketMQ Dashboard | 256MB | ~0.4GB | |
-| Seata（事务协调器） | 256MB | ~0.5GB | |
-| Elasticsearch（search profile） | 512MB | ~1GB | mmap 占用高 |
-| XXL-Job（task profile） | 256MB | ~0.4GB | |
-| SkyWalking OAP/UI（trace profile） | 512MB/256MB | ~1.2GB | |
-| 后端微服务 ×10（gateway/auth/admin/portal/member/product/cart/order/payment/coupon） | 默认堆 | ~4~5.5GB | 单个常驻 350~550MB |
-| 前端 Vite dev ×2（mall-web-admin / mall-web-portal） | — | ~1GB | 含依赖预构建 |
-| 开发工具（IDEA + 浏览器） | — | ~3~5GB | |
-| Windows 系统 + Docker Desktop 引擎 | — | ~3~4GB | |
+| Nacos（注册/配置中心） | 256MB | ≈0.5GB | 3.x 含内嵌 Derby |
+| MySQL 8.3 | 默认 | ≈0.5GB | 容器默认缓冲池 |
+| Redis 7.2（AOF 持久化） | — | ≈0.2GB | |
+| RocketMQ Namesrv | 256MB | ≈0.4GB | |
+| RocketMQ Broker | 512MB | ≈0.8GB | commitlog 页缓存占用偏高 |
+| RocketMQ Dashboard | 256MB | ≈0.4GB | |
+| Seata（事务协调器） | 256MB | ≈0.5GB | |
+| Elasticsearch（search profile） | 512MB | ≈1GB | mmap 占用高 |
+| XXL-Job（task profile） | 256MB | ≈0.4GB | |
+| SkyWalking OAP/UI（trace profile） | 512MB/256MB | ≈1.2GB | |
+| 后端微服务 ×10（gateway/auth/admin/portal/member/product/cart/order/payment/coupon） | 默认堆 | ≈4～5.5GB | 单个常驻 350～550MB |
+| 前端 Vite dev ×2（mall-web-admin / mall-web-portal） | — | ≈1GB | 含依赖预构建 |
+| 开发工具（IDEA + 浏览器） | — | ≈3～5GB | |
+| Windows 系统 + Docker Desktop 引擎 | — | ≈3～4GB | |
 
-**合计峰值：核心链路（7 件套中间件 + 10 后端 + 2 前端，不含 IDE）约 8~10GB；全量（含 search/task/trace 可选中间件 + IDE + 系统）约 15~20GB+。**
+**合计峰值：核心链路（7 件套中间件 + 10 后端 + 2 前端，不含 IDE）约 8～10GB；全量（含 search/task/trace 可选中间件 + IDE + 系统）约 15～20GB+。**
 
 #### 配置分档
 
 | 档位 | 内存 | CPU | 磁盘 | 可运行范围 |
 |---|---|---|---|---|
-| 最低档 | 16GB | 8 核 | 100GB SSD | 基础中间件 3 件套（Nacos/MySQL/Redis）+ 4~6 个后端 + 1 个前端，其余按阶段分批启动 |
-| 推荐档 | 32GB | 8~16 核 | 200GB+ SSD | 全量中间件 + 10 个后端 + 2 个前端 + IDEA，顺畅运行 |
+| 最低档 | 16GB | 8 核 | 100GB SSD | 基础中间件 3 件套（Nacos/MySQL/Redis）+ 4～6 个后端 + 1 个前端，其余按阶段分批启动 |
+| 推荐档 | 32GB | 8～16 核 | 200GB+ SSD | 全量中间件 + 10 个后端 + 2 个前端 + IDEA，顺畅运行 |
 | 顶配档 | 64GB+ | 16 核+ | 500GB+ SSD | 推荐档基础上支持 `--scale` 多实例 + JMeter 压测演练 |
 
 > 16GB 实测结论：Docker 全量中间件 + 全部后端服务 + 双前端 + IDEA 同时拉起时，内存占用持续触顶、系统无响应；**16GB 必须按需启动，32GB 才可全量顺畅**。
@@ -109,11 +109,13 @@
 #### 低配机器降载策略
 
 1. **中间件按 profile 分批**：默认只启 Nacos/MySQL/Redis（约 1GB，见「第 3 步：启动中间件」），学到哪个阶段再启对应 profile，用完 `docker compose stop` 停掉
-2. **后端按阶段只启所需服务**：按学习阶段只启动 4~6 个核心服务（见「第 4 步：启动微服务」），阶段完成后停掉再启下一阶段
+2. **后端按阶段只启所需服务**：按学习阶段只启动 4～6 个核心服务（见「第 4 步：启动微服务」），阶段完成后停掉再启下一阶段
 3. **调小后端 JVM**：低配机器可统一加 `-Xms256m -Xmx256m -XX:MaxMetaspaceSize=256m`（IDEA VM options 或启动脚本），10 个服务可省约 1.5GB
 4. **Docker Desktop 内存上限调低**：Settings → Resources → Memory 设为 4GB（默认 3 件套约 1GB 足够）
 5. **避开构建峰值**：Maven 多模块打包 / npm install 时内存峰值高，避免与全量运行同时进行
 6. **前端一次只开一个**：骨架验证只需 mall-web-admin，前台商城按需再启
+
+> 以上为通用策略；16GB 机器实测的极限压缩做法（JVM 参数 / 各手段收益）见「极限内存压缩方案」。
 
 #### 云服务器部署建议（以阿里云为例）
 
@@ -121,20 +123,20 @@
 
 | 部署形态 | 机器 | 规格建议（阿里云 ECS） | 内存估算依据 | 适用场景 |
 |---|---|---|---|---|
-| 单机全量 | 1 台 | 8C32G（ecs.g7.2xlarge） | 全量中间件约 6GB + 12 个后端 5~6.5GB + 前端/Nginx 约 1GB + 系统 2~3GB ≈ 峰值 15GB | 最省，学习/演示 |
-| 双机分离（最常见） | 2 台 | 8C16G（ecs.c7.2xlarge）×2 | Docker 机：全量中间件 6GB + 系统 2~3GB ≈ 9GB；应用机：12 个后端 5~6.5GB + 前端 1GB + 系统 2GB ≈ 9.5GB | Docker 与 Java 各占一机，互不干扰 |
+| 单机全量 | 1 台 | 8C32G（ecs.g7.2xlarge） | 全量中间件约 6GB + 12 个后端 5～6.5GB + 前端/Nginx 约 1GB + 系统 2～3GB ≈ 峰值 15GB | 最省，学习/演示 |
+| 双机分离（最常见） | 2 台 | 8C16G（ecs.c7.2xlarge）×2 | Docker 机：全量中间件 6GB + 系统 2～3GB ≈ 9GB；应用机：12 个后端 5～6.5GB + 前端 1GB + 系统 2GB ≈ 9.5GB | Docker 与 Java 各占一机，互不干扰 |
 | 三机生产雏形 | 3 台 | 4C8G（ecs.c7.xlarge）+ 8C16G ×2 | 数据库机：MySQL/Redis ≈ 1.5GB；中间件机：其余中间件 ≈ 7.5GB；应用机：12 个后端 + 前端 ≈ 9.5GB | 数据库独立，贴近生产拓扑 |
 
 只跑部分组件时的起步配置：
 
 - **只跑基础中间件**（Nacos/MySQL/Redis，约 1.2GB）：Docker 机 4C8G 即可
-- **只跑当前阶段后端**（4~6 个服务，约 3GB）：应用机 4C8G 起步
+- **只跑当前阶段后端**（4～6 个服务，约 3GB）：应用机 4C8G 起步
 - **全量中间件**（11 个容器约 6GB）或 **全量 12 个后端**（约 6.5GB）：分别需要 8C16G
 
 补充说明：
 
 - **磁盘**：系统盘 40GB + 数据盘 100GB ESSD 起步（镜像约 3GB，MySQL/RocketMQ 数据卷与日志持续增长）
-- **带宽**：学习调试 3~5Mbps 按量计费即可；对外演示/团队共用建议 10Mbps 起
+- **带宽**：学习调试 3～5Mbps 按量计费即可；对外演示/团队共用建议 10Mbps 起
 - **上云改动点**：各模块 application.yml 的 nacos/redis/数据库地址改为中间件机内网 IP；服务间 Feign/Dubbo 走 Nacos 注册自动发现，跨机部署无需改端口；安全组只需放行对外端口（8080 网关入口、8849/9081/9080/9090 各中间件控制台，按需）
 - **云服务器日志**：建议各服务统一 `-DLOG_PATH=/opt/mall/logs`（或 application.yml 配 `logging.file.path`）集中到固定目录，便于采集（详见「日志方案」）
 
@@ -146,7 +148,7 @@
 
 | 组件 | 压缩配置 | 实测占用 |
 |---|---|---|
-| 后端微服务 ×10 | `-Xms128m -Xmx256m -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=64m -Xss512k -XX:MaxDirectMemorySize=128m -XX:+UseSerialGC` | 合计 ~3.2GB（单服务 210~430MB） |
+| 后端微服务 ×10 | `-Xms128m -Xmx256m -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=64m -Xss512k -XX:MaxDirectMemorySize=128m -XX:+UseSerialGC` | 合计 ≈3.2GB（单服务 210～430MB） |
 | Nacos | JVM 256m（compose `JVM_XMS/JVM_XMX`） | 753MB（3.x 含 Derby/堆外） |
 | RocketMQ Broker | `-Xms512m -Xmx512m`（compose `JAVA_OPT_EXT`） | 835MB（commitlog 页缓存不吃堆） |
 | RocketMQ Namesrv | `-Xms256m -Xmx256m` | 284MB |
@@ -159,17 +161,17 @@
 
 | 优先级 | 手段 | 可节省 | 做法 |
 |---|---|---|---|
-| 1 | 按阶段只启所需服务 | ~1.1GB | 阶段4：gateway/auth/member/product/cart/coupon/portal 7 个；阶段5：+order；阶段6：全 10 个（order/payment/admin 约 1.1GB） |
-| 2 | 非验证期停 MQ/Seata | ~1.5GB | 阶段4 用不到：`docker compose stop rocketmq-namesrv rocketmq-broker seata`（三容器实测约 1.5GB） |
-| 3 | JVM 激进档（仅功能验证，勿压测） | ~0.4GB | `-Xms128m -Xmx192m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m -Xss512k -XX:MaxDirectMemorySize=96m -XX:+UseSerialGC`（当前验证已用 256m 档，见 tools/verify/start-svc.ps1） |
-| 4 | 中间件 JVM 再压（改 compose 后 `docker compose up -d --force-recreate`） | ~0.3GB | nacos/seata 256m→192m、namesrv 256m→128m、broker 512m→384m（broker 大头是页缓存不吃堆，收益有限）；MySQL/Redis 不建议动 |
-| 5 | 验证时不开 IDEA（脚本直接起 jar） | ~2GB | 脚本见 tools/verify/（仅本机，不入库） |
+| 1 | 按阶段只启所需服务 | ≈1.1GB | 阶段4：gateway/auth/member/product/cart/coupon/portal 7 个；阶段5：+order；阶段6：全 10 个（order/payment/admin 约 1.1GB） |
+| 2 | 非验证期停 MQ/Seata | ≈1.5GB | 阶段4 用不到：`docker compose stop rocketmq-namesrv rocketmq-broker seata`（三容器实测约 1.5GB） |
+| 3 | JVM 激进档（仅功能验证，勿压测） | ≈0.4GB | `-Xms128m -Xmx192m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m -Xss512k -XX:MaxDirectMemorySize=96m -XX:+UseSerialGC`（当前验证已用 256m 档，见 tools/verify/start-svc.ps1） |
+| 4 | 中间件 JVM 再压（改 compose 后 `docker compose up -d --force-recreate`） | ≈0.3GB | nacos/seata 256m→192m、namesrv 256m→128m、broker 512m→384m（broker 大头是页缓存不吃堆，收益有限）；MySQL/Redis 不建议动 |
+| 5 | 验证时不开 IDEA（脚本直接起 jar） | ≈2GB | 脚本见 tools/verify/（仅本机，不入库） |
 
 > 组合效果：阶段4 验证采用 1+2 后，java 约 2.2GB + 容器约 1.3GB ≈ 3.5GB。当前验证脚本为省事统一启动了 10 个服务，按需裁剪参考上表。
 
 #### 启动方式经验（本机特有）
 
-- 本机存在周期性向共享控制台进程发送 Ctrl+C 的机制：`Start-Process` / `schtasks` 启动的 java 会在 1~5 分钟内被杀（错误日志内容为 `^C`）
+- 本机存在周期性向共享控制台进程发送 Ctrl+C 的机制：`Start-Process` / `schtasks` 启动的 java 会在 1～5 分钟内被杀（错误日志内容为 `^C`）
 - **解法：Windows 服务方式启动（Session 0 无控制台）可完全免疫**：`sc create MallXxxSvc binPath= "cmd /c <cmd文件>"` + `sc start`（服务显示 Stopped / 1053 属预期，java 进程实际正常运行）；生成器脚本见 tools/verify/start-as-service.ps1
 - 一键停止全部：tools/verify/stop-all.ps1（杀 java + `docker compose down`，数据卷保留）
 
@@ -182,7 +184,7 @@
 | JDK | 17 | 必须 | IDEA 编译、Maven 打包、断点调试都直接调用本机 JDK，Docker 无法替代 |
 | Maven | 3.9.x（推荐 3.9.16） | 必须 | IDEA 自带 Bundled 3.9.x 可直接选用，或独立安装 3.9.16（最低 3.6.3） |
 | Node.js | 20.x LTS 及以上 | 必须 | 前端两个模块（mall-web-admin / mall-web-portal）的开发与构建；安装后自带 npm |
-| Docker Desktop | 最新版 | 非必须（强烈推荐） | 中间件按需部署 + `--scale` 多实例模拟；Hyper-V 后端，内存建议分配 4~8GB（默认 3 件套约 1GB，全量约 5GB+） |
+| Docker Desktop | 最新版 | 非必须（强烈推荐） | 中间件按需部署 + `--scale` 多实例模拟；Hyper-V 后端，内存建议分配 4～8GB（默认 3 件套约 1GB，全量约 5GB+） |
 | 阿里云 OSS / ODPS | 云服务 | 非必须（可选，可后补） | 商品图片对象存储（配置 `mall.product.oss.enabled=true` 即启用，未配置默认本地存储）/ 离线数仓，学习阶段可不接入 |
 
 > 8 个中间件（MySQL / Redis / Nacos / RocketMQ / Seata / Elasticsearch / XXL-Job / SkyWalking）不用本机安装：**装了 Docker Desktop 由第 3 步按需启动（默认只跑 Nacos/MySQL/Redis 三个基础件，其余按学习阶段用 `--profile` 拉起）；没装 Docker 则需自行下载 8 个中间件的 Windows 版本逐个安装配置**（均有 Windows 版，但较繁琐，且无法模拟多实例部署）。本机已安装哪个服务，记得从 docker-compose.yml 删除对应的服务段（避免端口冲突，规则详见「环境准备详解」）。
@@ -298,7 +300,7 @@ $services = 'mall-gateway','mall-auth','mall-admin','mall-portal','mall-member',
 foreach ($s in $services) { Start-Process mvn -ArgumentList "-pl",$s,"spring-boot:run" }
 ```
 
-> 资源提醒：12 个 JVM 约占用 4~6GB 内存；机器吃紧可分组勾选（未启动的服务不影响其他服务运行）。
+> 资源提醒：12 个 JVM 约占用 4～6GB 内存；机器吃紧可分组勾选（未启动的服务不影响其他服务运行）。
 >
 > **模块可任意单独启动**：服务间调用发生在运行时，启动时只依赖中间件（Nacos/MySQL/Redis 等）。无微服务依赖的模块（product/cart/auth/member/search）单独启动即可用；有下游调用的模块（portal/admin/order 等）单独启动正常，仅在调用缺失的下游服务时对应功能不可用。
 
@@ -427,212 +429,7 @@ docker compose up -d --scale mall-gateway=2 # 网关 2 副本
 >
 > 类比 MySQL：`mysql-connector-j` 是依赖，MySQL 服务器是独立服务。代码里光有客户端依赖、没有服务端进程是连不上的。
 
-<details>
-<summary>点击展开 docker-compose.yml 完整内容</summary>
-
-```yaml
-# ============================================================
-# mall-practice 中间件编排文件（按需启动版）
-#
-# 默认只启动 3 个基础中间件 Nacos + MySQL + Redis（合计约 1GB 内存）：
-#   命令：docker compose up -d
-#
-# 其余中间件按学习阶段用 profile 按需启动（不启动不占内存）：
-#   消息队列阶段：   docker compose --profile rocketmq up -d
-#   分布式事务阶段： docker compose --profile seata up -d
-#   搜索阶段：       docker compose --profile search up -d
-#   任务调度阶段：   docker compose --profile task up -d   （自动带起 MySQL）
-#   链路追踪阶段：   docker compose --profile trace up -d
-#   全部启动：       docker compose --profile rocketmq --profile seata --profile search --profile task --profile trace up -d
-#   停止并移除：     docker compose down
-#   仅停止不删数据： docker compose stop
-#
-# 按需删除规则：本机已安装哪个服务（如 MySQL/Redis），就删除下方对应的服务段，避免端口冲突
-# 首次执行会自动拉取镜像（共约 3GB，建议先配置国内镜像加速器）
-#
-# ---------- 数据持久化根目录（.env 可配置，无需改本文件） ----------
-# 所有中间件数据统一存到 ${DOCKER_DATA_DIR} 下的各自子目录（mysql/redis/nacos/...）；
-# DOCKER_DATA_DIR 未配置时启动报错；首次使用请复制 .env.example 为 .env 并设置
-#
-# ---------- 连接本机数据库 vs Docker 容器数据库的区别 ----------
-# 本机已装 MySQL/Redis（从 yaml 删除 mysql/redis 段）：容器内应用访问宿主机数据库
-#   必须使用 host.docker.internal（Docker Desktop 专用域名，指向宿主机），如：
-#   jdbc:mysql://host.docker.internal:3306/xxl_job
-# 未装 MySQL/Redis（保留容器版）：容器与应用同处一个 compose 网络
-#   直接用服务名互访（Compose 网络内置 DNS），如：jdbc:mysql://mysql:3306/xxl_job
-#   注意：启用容器版 MySQL 时，需同步将下方 xxl-job 的 PARAMS 改为 mysql:3306
-# ============================================================
-
-services:
-  # ---------- 注册中心 + 配置中心 ----------
-  nacos:
-    image: nacos/nacos-server:v3.0.0
-    container_name: mall-nacos
-    environment:
-      - MODE=standalone
-      - NACOS_AUTH_ENABLE=false   # 学习环境关闭鉴权；但 3.x 启动脚本强制要求下面三个变量非空
-      - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN}
-      - NACOS_AUTH_IDENTITY_KEY=${NACOS_AUTH_IDENTITY_KEY}
-      - NACOS_AUTH_IDENTITY_VALUE=${NACOS_AUTH_IDENTITY_VALUE}
-      - JVM_XMS=256m
-      - JVM_XMX=256m
-      - JVM_XMN=128m
-    ports:
-      - "8848:8848"   # 服务端 HTTP API
-      - "8849:8080"   # Nacos 3.x 控制台 UI（拆分为独立 8080 端口，映射到宿主机 8849）
-      - "9848:9848"   # gRPC（客户端注册）
-    volumes:
-      # Derby 数据（注册/配置）持久化；无卷时容器重建会回到空库甚至遇到中断损坏的脏数据
-      - ${DOCKER_DATA_DIR}/nacos:/home/nacos/data
-    restart: unless-stopped
-
-  # ---------- 消息队列 ----------
-  rocketmq-namesrv:
-    image: apache/rocketmq:5.3.2
-    container_name: mall-rocketmq-namesrv
-    profiles: ["rocketmq"]
-    environment:
-      - JAVA_OPT_EXT=-Xms256m -Xmx256m -Xmn128m
-    ports:
-      - "9876:9876"
-    command: sh mqnamesrv
-    restart: unless-stopped
-
-  rocketmq-broker:
-    image: apache/rocketmq:5.3.2
-    container_name: mall-rocketmq-broker
-    profiles: ["rocketmq"]
-    depends_on:
-      - rocketmq-namesrv
-    environment:
-      - JAVA_OPT_EXT=-Xms512m -Xmx512m -Xmn256m
-    ports:
-      - "10909:10909"  # VIP 通道
-      - "10911:10911"  # 客户端连接端口
-    volumes:
-      # brokerIP1=127.0.0.1 保证宿主机客户端经端口映射可达 Broker
-      - ./docker/rocketmq/broker.conf:/home/rocketmq/rocketmq-5.3.2/conf/broker.conf
-      # 消息存储（commitlog/consumequeue）持久化，容器重建不丢消息
-      - ${DOCKER_DATA_DIR}/rocketmq-broker:/home/rocketmq/store
-    command: sh mqbroker -c /home/rocketmq/rocketmq-5.3.2/conf/broker.conf
-    restart: unless-stopped
-
-  rocketmq-dashboard:
-    image: apacherocketmq/rocketmq-dashboard:latest
-    container_name: mall-rocketmq-dashboard
-    profiles: ["rocketmq"]
-    depends_on:
-      - rocketmq-namesrv
-    environment:
-      - JAVA_OPTS=-Drocketmq.namesrv.addr=rocketmq-namesrv:9876 -Dserver.port=8080 -Xms256m -Xmx256m
-    ports:
-      - "9081:8080"   # http://localhost:9081
-    restart: unless-stopped
-
-  # ---------- 分布式事务 ----------
-  seata:
-    image: apache/seata-server:2.5.0   # 与 SCA 2025.1.0.0 管理的客户端版本对齐
-    container_name: mall-seata
-    profiles: ["seata"]
-    environment:
-      - SEATA_IP=127.0.0.1
-      - SEATA_PORT=8091
-      - STORE_MODE=file   # 学习环境用文件存储，生产建议 DB
-      - JVM_XMS=256m
-      - JVM_XMX=256m
-    ports:
-      - "7091:7091"
-      - "8091:8091"       # 事务 RPC 端口（客户端配置指向 127.0.0.1:8091）
-    volumes:
-      # file 模式事务日志（sessionStore）持久化
-      - ${DOCKER_DATA_DIR}/seata:/seata-server/sessionStore
-    restart: unless-stopped
-
-  # ---------- 搜索 ----------
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
-    container_name: mall-elasticsearch
-    profiles: ["search"]
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false   # 学习环境关闭安全认证（生产勿关）
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    ports:
-      - "9200:9200"
-    volumes:
-      # 索引数据持久化，容器重建不丢索引
-      - ${DOCKER_DATA_DIR}/elasticsearch:/usr/share/elasticsearch/data
-    restart: unless-stopped
-
-  # ---------- 任务调度 ----------
-  # 注意：启动前需在 MySQL 创建 xxl_job 库并导入仓库 sql/xxl_job.sql（3.1.0 版表结构），
-  # 并将下方 spring.datasource.username/password 改为你的 MySQL 账号密码（在 .env 的 XXL_JOB_DB_USERNAME/XXL_JOB_DB_PASSWORD 配置）。
-  # 连接地址：当前使用容器版 MySQL（mysql:3306）；若改回本机 MySQL 则换回 host.docker.internal:3306。
-  xxl-job:
-    image: xuxueli/xxl-job-admin:3.1.0   # 3.x 基于 JDK17，与项目技术栈对齐（表结构用 sql/xxl_job.sql 3.1.0 版）
-    container_name: mall-xxl-job
-    profiles: ["task"]
-    depends_on:
-      - mysql
-    environment:
-      - JAVA_OPTS=-Xms256m -Xmx256m
-      - PARAMS=--spring.datasource.url=jdbc:mysql://mysql:3306/xxl_job?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true --spring.datasource.username=${XXL_JOB_DB_USERNAME} --spring.datasource.password=${XXL_JOB_DB_PASSWORD} --server.port=8080
-    ports:
-      - "9080:8080"   # 控制台 http://localhost:9080/xxl-job-admin
-    restart: unless-stopped
-
-  # ---------- 链路追踪 ----------
-  skywalking-oap:
-    image: apache/skywalking-oap-server:10.1.0
-    container_name: mall-skywalking-oap
-    profiles: ["trace"]
-    environment:
-      - SW_HEAP=512m
-      - SW_STORAGE=h2        # 学习环境用 H2 存储，生产建议 ES
-    ports:
-      - "11800:11800"  # gRPC（agent 上报）
-      - "12800:12800"  # HTTP（UI 查询）
-    restart: unless-stopped
-
-  skywalking-ui:
-    image: apache/skywalking-ui:10.1.0
-    container_name: mall-skywalking-ui
-    profiles: ["trace"]
-    depends_on:
-      - skywalking-oap
-    environment:
-      - SW_OAP_ADDRESS=http://skywalking-oap:12800
-      - JAVA_OPTS=-Xms256m -Xmx256m
-    ports:
-      - "9090:8080"    # http://localhost:9090
-    restart: unless-stopped
-
-  # ---------- MySQL / Redis（容器版；若改用本机安装则删除对应服务段） ----------
-  # 数据通过 bind mount 持久化到宿主机 ${DOCKER_DATA_DIR} 下的各自目录
-  mysql:
-    image: mysql:8.3
-    container_name: mall-mysql
-    ports:
-      - "3306:3306"
-    volumes:
-      - ${DOCKER_DATA_DIR}/mysql:/var/lib/mysql   # 数据目录
-    restart: unless-stopped
-
-  redis:
-    image: redis:7.2
-    container_name: mall-redis
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}   # 开启 AOF 持久化 + 访问密码（账密在 .env 配置；需与各模块 application.yml 的 redis.password 一致）
-    ports:
-      - "6379:6379"
-    volumes:
-      - ${DOCKER_DATA_DIR}/redis:/data             # AOF 持久化目录
-    restart: unless-stopped
-```
-
-</details>
-
-> **按需删除规则**：仓库中的 `docker-compose.yml` 采用 profile 按需启动（默认 Nacos/MySQL/Redis 三个基础件，其余按 `--profile` 拉起）。本机已安装哪个服务，就删除对应的服务段，避免端口冲突。例如本机已装 MySQL/Redis，则删除文件末尾的 `mysql`、`redis` 两段；若改用本机 MySQL，需将 xxl-job 的连接地址 `mysql:3306` 改回 `host.docker.internal:3306`。
-
+> **完整编排文件**：仓库根目录 [docker-compose.yml](docker-compose.yml)（内容以仓库文件为准，README 不再复制）。
 
 ## 端口规划总表
 
@@ -848,8 +645,8 @@ sequenceDiagram
     PORTAL-->>UI: "15. 拉起收银台"
 ```
 
-- 步骤 6~9 处于 Seata AT 全局事务范围（详见「分布式事务策略」）；步骤 10 的延迟消息超时未支付则触发关单：回补库存 + 退回优惠券
-- 步骤 1~4 即「登录后进商城还是后台」的答案：入口天然分离（商城/后台是不同站点与路由前缀），登录后网关按 JWT 角色 + 路径前缀分流，不存在登录后二选一
+- 步骤 6～9 处于 Seata AT 全局事务范围（详见「分布式事务策略」）；步骤 10 的延迟消息超时未支付则触发关单：回补库存 + 退回优惠券
+- 步骤 1～4 即「登录后进商城还是后台」的答案：入口天然分离（商城/后台是不同站点与路由前缀），登录后网关按 JWT 角色 + 路径前缀分流，不存在登录后二选一
 
 ### 4. 工程结构图
 
@@ -1124,7 +921,7 @@ graph TB
 >
 > 阶段 3 说明：商品域与进销存已闭环——分类 / 品牌（分类最多三级、父子约束校验）；SPU/SKU 模型（spu_code / sku_code 唯一，上架需至少一个启用 SKU）；供应商档案 + 采购单状态机（0待审核 1待收货 2部分入库 3已完成 4已取消）+ 分批入库（库存流水联动 change_type=5）；盘点调整（change_type=7）与库存预警（low_stock 阈值）；商品详情 Redis 缓存三防（穿透空值短缓存 / 击穿 SETNX 互斥锁 / 雪崩 TTL 随机偏移）+ 热销 Top N 定时预热（@Scheduled + 手动触发接口，xxl-job 接入后替换）；收藏（member_favorite 唯一防重复）；图片上传双通道（UploadStorage 抽象：`mall.product.oss.enabled=true` 走阿里云 OSS，未配置默认本地存储，上传接口与静态访问映射已落地）。
 >
-> 阶段 4/5/6 说明（购物车·营销 / 交易核心 / 支付履约，**已完成待测试**，代码全部落地、本地编译通过，待启动服务统一验证）：
+> 阶段 4/5/6 说明（购物车·营销 / 交易核心 / 支付履约，**已完成**，代码全部落地，三阶段集成验证已全部通过——验证脚本见 tools/verify/verify4.ps1 / verify5.ps1 / verify6.ps1，仅本机不入库）：
 >
 > **购物车与营销**：mall-cart 购物车 Redis Hash 存储（key=cart:{memberId}，field=skuId，value=JSON {quantity, checked}，无 DB 依赖），列表组装调 product 拉 SKU 快照（价格/上下架/库存），失效商品标 invalid 前端置灰，结算前再次校验；mall-coupon 券模板（后台新增/修改/启停）+ 领券（SETNX 幂等防重复提交 + DB 条件更新防超领 + per_limit 限领）+ 锁券（下单时锁定，coupon_user.order_id 为关联键）/ 核销（支付成功）/ 退回（关单/退款，按 orderId+memberId 条件更新幂等）+ 过期扫描（@Scheduled 定时把过期未用券置为失效）+ 优惠计算（满减/折扣，下单选券时校验门槛与有效期）。
 >
@@ -1147,7 +944,7 @@ graph TB
 2. 核心链路（order → product/payment/coupon/seckill）切换 Dubbo 3，压测对比
 3. 定稿"核心 Dubbo + 边缘 Feign"混合形态
 
-> 双协议共存：核心链路服务（product/coupon/payment/seckill/order）同时暴露 HTTP 与 Dubbo（本地 20881~20891 递增，容器内统一 20880）；聚合层（portal/admin）与网关纯 HTTP 不暴露 Dubbo（端口总表已预留不启用）；注册中心统一 Nacos；Sentinel/SkyWalking 均支持两种协议。
+> 双协议共存：核心链路服务（product/coupon/payment/seckill/order）同时暴露 HTTP 与 Dubbo（本地 20881～20891 递增，容器内统一 20880）；聚合层（portal/admin）与网关纯 HTTP 不暴露 Dubbo（端口总表已预留不启用）；注册中心统一 Nacos；Sentinel/SkyWalking 均支持两种协议。
 
 ## 分布式事务策略
 
@@ -1188,7 +985,7 @@ A：容器内将连接地址改为 `host.docker.internal`。
 A：能。微服务在 IDEA 直跑即可；但 Nacos/RocketMQ/Seata/ES/XXL-Job/SkyWalking 需手动下载 Windows 版逐个安装，且无法模拟多实例部署，建议安装。
 
 **Q：启动时报内存不足？**
-A：Docker Desktop 设置（Resources）中把虚拟机内存调到 8GB；本地直跑时按需勾选部分服务。
+A：Docker Desktop 设置（Resources）中把虚拟机内存调大（16GB 机器建议 4GB，32GB 机器可 8GB）；本地直跑时按需勾选部分服务——16GB 机器全量跑不动，压缩做法见「极限内存压缩方案」。
 
 **Q：为什么容器内端口都是 8080 不冲突？**
 A：端口冲突只在两种情况下发生：同一容器内的多进程、以及宿主机映射端口。不同容器之间各自有独立的网络命名空间和 IP，互不影响，所以 12 个容器内都用 8080 可行；宿主机映射端口必须唯一（如 8080→网关、9080→xxl-job）。类比：每栋楼都有 101 房间，房号相同但互不冲突，园区前台的登记册（端口映射）才需要唯一。
@@ -1197,7 +994,7 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 
 ## 业务篇
 
-## 业务表设计总览
+### 业务表设计总览
 
 `sql/mall.sql` 共 **28 张表**，表名前缀 = **数据语义域**（表装的是哪一域数据，而非被哪个平台使用）——多数域与模块同名（member_* 会员域归 mall-member、product_* 商品域归 mall-product）；例外有两个——admin_*（语义域 = 后台管理，管理员账号 + RBAC，由 mall-auth 认证权限服务持有）与 tx_message（公共域组件表，归 mall-common，前缀取语义而非模块名）：
 
@@ -1235,11 +1032,11 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 6. **履约与评价链路**：后台发货（orders.delivery_company / delivery_sn 物流 + delivery_time，1待发货→2待收货）→ 确认收货 / 超时自动收货（receive_time→3已完成）→ 评价（product_comment，唯一键防重复评价 + 后台回复）→ 积分返还（member_point_log）
 7. **进销存链路**：采购单（product_purchase 状态机）→ 分批入库（sku.stock 增加 + stock_log change_type=5）→ 上架销售（下单扣减）→ 售后退货入库（change_type=6）+ 退款打款；盘点差异（change_type=7）调整留痕——库存从此有进有出，不靠「直接设库存」
 
-## 两平台功能菜单总览
+### 两平台功能菜单总览
 
 > 本项目共两个平台：**前台商城（C 端买家，mall-portal）** 与 **管理后台（B 端运营，mall-admin）**，职责边界：买家在商城逛、买、售后；运营在后台管商品、管库存、管采购、管订单履约、管营销、看数据。菜单按市面主流电商系统通用划分设计（参考市面电商后台的商品中心 / 订单中心 / 采购中心 / 库存中心 / 促销中心 / 系统管理结构，以及 ERP 进销存的供应商 / 采购入库 / 退货入库链路），每条目标注对应「电商技术场景清单」功能点编号，保证菜单与功能点一一对应、两平台不交叉。
 
-### 管理后台（mall-admin）
+#### 管理后台（mall-admin）
 
 > 菜单树即 admin_menu 表初始化数据（RBAC 权限粒度到菜单 / 按钮），页面由后台前端工程渲染。
 
@@ -1267,7 +1064,7 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 | | 角色管理 | 角色 + 权限分配 | 1.8、1.9 |
 | | 菜单管理 | 菜单 / 按钮权限维护 | 1.8 |
 
-### 前台商城（mall-portal）
+#### 前台商城（mall-portal）
 
 | 一级频道 | 页面 | 页面功能 | 对应功能点 |
 |---|---|---|---|
@@ -1275,7 +1072,7 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 | 商品频道 | 商品列表页 | 分类筛选 / 排序 | 2.3 |
 | | 商品详情页 | 详情 / 加购 / 收藏 / 点赞 / 秒杀入口 | 2.3、2.4、2.7、10.5 |
 | | 搜索页 | ES 搜索 / 联想 / 高亮 | 13.2 |
-| 购物车 | 购物车页 | 加购 / 改数量 / 勾选结算 | 3.1~3.5 |
+| 购物车 | 购物车页 | 加购 / 改数量 / 勾选结算 | 3.1～3.5 |
 | 交易频道 | 结算页 | 地址 / 选券 / 优惠计算 / 提交订单 | 3.5、4.7、6.1 |
 | | 收银台 | 拉起支付 / 模拟支付 | 7.1、7.2 |
 | | 支付结果页 | 成功 / 失败结果 | 7.4 |
@@ -1289,14 +1086,14 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 | | 我的收藏 | 收藏列表 | 2.7 |
 | | 浏览足迹 | 最近浏览 50 条 | 10.6 |
 | | 我的积分 | 余额 / 流水 / 签到 | 1.11、10.3 |
-| | 我的优惠券 | 可用 / 已用 / 过期 | 4.2~4.6 |
+| | 我的优惠券 | 可用 / 已用 / 过期 | 4.2～4.6 |
 | 秒杀频道 | 秒杀会场 | 场次切换 / 秒杀下单 / 结果查询 | 14.1、14.4、14.5、14.6 |
 
 **两平台边界**：前台只做买货相关（浏览 / 加购 / 下单 / 售后申请 / 个人资产），无任何管理动作；后台只做运营管理（商品 / 库存 / 采购 / 订单履约 / 售后审核 / 营销 / 数据 / 系统），无购物车 / 收藏等买家行为。同一业务对象两侧视图不同（如库存：前台只读剩余量，后台可查可盘可入）。
 
 **功能点全覆盖说明**：109 个功能点按「是否有用户界面」分两类——**59 个页面级功能点**（浏览 / 下单 / 管理操作等）已在上方两表逐条映射到菜单 / 页面，全覆盖无遗漏；**50 个系统级技术点**无独立页面入口属正常设计（如 8.x MQ 消息、9.x Redis、11.x 数据库、12.x 高并发与工程横切面、13.x 架构进阶、14.x 秒杀内部链路等），它们以「页面功能背后的实现」形式落地（例：8.2 延迟消息关单支撑订单列表的自动关闭、9.2 缓存三防支撑商品详情页的高并发读、12.3 幂等 token 支撑结算页防重复下单），验收时按对应场景清单逐项验证即可。
 
-## 电商技术场景清单
+### 电商技术场景清单
 
 > 覆盖近两年电商高频技术场景，15 个场景共 109 个业务功能点，以表格形式总览——功能点逐项编号，技术方案就近写入对应单元格，一眼看清每个场景「做什么 + 用什么技术」。
 
@@ -1305,7 +1102,7 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 | **1. 用户模块**（mall-member / mall-auth） | 1.1 买家注册 / 登录<br>1.2 JWT 签发 / 刷新<br>1.3 网关 JWT 鉴权<br>1.4 个人资料修改<br>1.5 会员等级权益<br>1.6 收货地址管理<br>1.7 后台管理员登录<br>1.8 RBAC 权限管理<br>1.9 接口权限校验<br>1.10 修改 / 找回密码<br>1.11 积分查询与流水 | 1.1 BCrypt 加密（加盐 / 慢哈希，不用 MD5）；买家登录：portal→auth 签发 JWT，auth 经 HTTP 调 member 内部校验接口核对密码（member 表数据归属不动）<br>1.2 JWT 无状态 vs 无法主动失效 → Redis 黑名单 + refresh 轮换防重放 + 用户令牌跟踪集（禁用/重置密码/角色变更踢下线即时生效；auth 查 Redis 校验，网关经 WebClient 调 auth 透传结果；gateway 无 Redis 依赖故不自查）<br>1.3 网关鉴权 vs 业务服务鉴权区别；业务服务信任网关透传的 X-User-Id 等头（生产需网络隔离，禁止业务端口对外暴露）<br>1.5 member.level：折扣 / 免运费 / 积分倍率；买家侧"权限"= 账号状态（禁用 / 拉黑）+ 等级权益，为什么不用 RBAC（扁平权益 vs 树形权限）<br>1.7 前后台账号分离：人员属性 / 密码策略 / 登录入口不同（member 状态+等级权益模型 vs admin_user RBAC 权限模型）<br>1.8 RBAC 五表（用户-角色-菜单），权限粒度到按钮<br>1.9 @PreAuthorize 校验 perms<br>1.10 图形 + 短信验证码（模拟短信，Redis 存码 + 过期）<br>1.11 member.points 余额 + member_point_log 流水（支付返积分 / 退款扣回）<br>**表**：member（level / points）、member_address、member_point_log、admin_user / admin_role / admin_menu / admin_user_role / admin_role_menu |
 | **2. 商品模块**（mall-product） | 2.1 商品分类 / 品牌管理<br>2.2 SPU / SKU 模型维护<br>2.3 商品列表 / 详情查询<br>2.4 商品详情 Redis 缓存<br>2.5 缓存预热<br>2.6 商品图片上传<br>2.7 商品收藏 / 取消收藏<br>2.8 商品评价（打分 / 图文，确认收货后） | 2.1 分类树<br>2.2 规格、价格、上下架；SPU/SKU 模型设计（核心）<br>2.4 穿透（布隆过滤器 / 缓存空值）；击穿（互斥锁 / 逻辑过期）；雪崩（TTL 随机偏移）<br>DB 与 Redis 双写一致性（先更 DB 再删缓存 / 延迟双删 / Canal）；热点 key 高并发读<br>2.5 热销 Top N 缓存预热（@Scheduled 定时 + 手动触发接口；xxl-job 接入后替换）<br>2.6 配置驱动双通道：mall.product.oss.enabled=true 走阿里云 OSS（启动 fail-fast 校验必填配置），未配置默认本地存储；UploadStorage 抽象按 @Order 选通道，接入 OBS 等其他对象存储仅需新增实现类<br>2.7 member_favorite 收藏列表（member_id + spu_id 唯一防重复）<br>2.8 product_comment 评价（uk_order_item_id 唯一键防重复评价；后台审核 / 回复 reply / 隐藏）<br>**表**：product_category / product_brand / product_spu / product_sku、member_favorite、product_comment |
 | **3. 购物车模块**（mall-cart） | 3.1 加入购物车<br>3.2 修改数量 / 删除条目 / 勾选结算<br>3.3 购物车列表查询<br>3.4 下单成功后清理已结算条目<br>3.5 结算前校验（下架 / 库存 / 价格变更） | 3.1 Redis Hash：key=cart:{memberId}，field=skuId<br>购物车为什么放 Redis（读写频繁 / 非强一致）；学习项目购物车不持久化（Redis 故障丢购物车可接受，DB 同步方案为可选扩展）<br>3.5 失效条目标记 + 结算时提示，避免下单时才报错<br>**表**：无（纯 Redis） |
-| **4. 优惠券模块**（mall-coupon） | 4.1 券模板创建 / 发行<br>4.2 用户领券<br>4.3 下单锁券<br>4.4 支付成功核销<br>4.5 取消订单 / 退款退回<br>4.6 过期作废<br>4.7 下单优惠计算（满减 / 折扣） | 4.1 总量 total_count、每人限领 per_limit<br>4.2 防超领：Redisson 分布式锁 + Lua 原子扣减（received_count < total_count）；领取幂等：Redis SETNX + 分布式锁（per_limit 可 >1，无法唯一键兜底）<br>4.3~4.5 coupon_user 状态机：未使用→已锁定→已使用，取消 / 退款退回→未使用（退回时校验券有效期，已过期则置已过期）<br>4.6 Redis 过期 key + xxl-job 定时兜底<br>Redisson：可重入 / 锁续期 / 锁失效<br>4.7 按 threshold 满减门槛 / amount 折扣率计算优惠金额；全场券（无品类 / 单品维度，简化设计）<br>**表**：coupon（per_limit）、coupon_user（0未使用 1已锁定 2已使用 3已过期） |
+| **4. 优惠券模块**（mall-coupon） | 4.1 券模板创建 / 发行<br>4.2 用户领券<br>4.3 下单锁券<br>4.4 支付成功核销<br>4.5 取消订单 / 退款退回<br>4.6 过期作废<br>4.7 下单优惠计算（满减 / 折扣） | 4.1 总量 total_count、每人限领 per_limit<br>4.2 防超领：Redisson 分布式锁 + Lua 原子扣减（received_count < total_count）；领取幂等：Redis SETNX + 分布式锁（per_limit 可 >1，无法唯一键兜底）<br>4.3～4.5 coupon_user 状态机：未使用→已锁定→已使用，取消 / 退款退回→未使用（退回时校验券有效期，已过期则置已过期）<br>4.6 Redis 过期 key + xxl-job 定时兜底<br>Redisson：可重入 / 锁续期 / 锁失效<br>4.7 按 threshold 满减门槛 / amount 折扣率计算优惠金额；全场券（无品类 / 单品维度，简化设计）<br>**表**：coupon（per_limit）、coupon_user（0未使用 1已锁定 2已使用 3已过期） |
 | **5. 库存模块**（mall-product）【核心】 | 5.1 库存查询<br>5.2 下单扣库存<br>5.3 取消订单 / 超时关单回补库存<br>5.4 库存流水记录<br>5.5 库存预警 | 5.2 超卖三方案：MySQL 乐观锁（update ... where stock>=n and version=?）/ 悲观锁（select for update）/ Redis 预扣 + MQ 异步落库；扣减失败 Seata 事务回滚<br>5.3 延迟消息释放库存<br>5.4 stock_log 每笔 before / after + change_type 9 类（1下单扣减 2取消回补 3退款回补 4秒杀扣减 5采购入库 6退货入库 7盘点调整 8人工调整 9秒杀回补）+ biz_sn 业务单号，可对账；change_count 统一“正数增加、负数减少”（入库为正、扣减为负）<br>5.5 sku.low_stock 阈值（低于即预警，NULL 取全局默认）→ 通知运营联动补货<br>为什么会超卖：check-then-act 非原子；乐观锁优缺点（无锁等待 vs ABA / 重试风暴）<br>**表**：product_sku（version 乐观锁）、product_stock_log（流水对账） |
 | **6. 订单模块**（mall-order）【电商核心】 | 6.1 创建订单<br>6.2 订单明细快照<br>6.3 订单状态机流转<br>6.4 订单列表 / 详情查询<br>6.5 取消订单<br>6.6 超时关单<br>6.7 大流量接口防刷<br>6.8 后台发货<br>6.9 确认收货 / 超时自动收货 | 6.1 下单幂等：request_id 唯一索引 + 前端 token；雪花算法订单号（时间回拨：回拨等待 / 备用生成器）<br>6.2 order_item 保存下单时价格 / 名称<br>6.3 6 状态（0待付款 1待发货 2待收货 3已完成 4已取消 5已退款）+ order_status_log 审计防乱改<br>6.5 回补库存 + 退回优惠券<br>6.6 RocketMQ 延迟消息（30 分钟未支付自动关闭，释放库存 + 退回券）<br>6.7 Sentinel；订单分库分表（按 member_id 哈希，ShardingSphere；注意分表后 uk_request_id / uk_order_sn 唯一索引失效，按订单号查询需 member_id 路由，学习项目逻辑分表演示）<br>6.8 后台发货：orders.delivery_company / delivery_sn 物流单号 + delivery_time 发货时间（1待发货→2待收货）<br>6.9 orders.receive_time 记录收货时间（2待收货→3已完成）；超时自动收货（延迟消息 / xxl-job 扫描）<br>**表**：orders（request_id / order_type）、order_item（快照）、order_status_log |
 | **7. 支付与退款模块**（mall-payment）【核心】 | 7.1 拉起收银台<br>7.2 模拟第三方支付<br>7.3 支付回调接收<br>7.4 回调更新订单状态<br>7.5 支付结果 MQ 异步通知<br>7.6 支付单状态机<br>7.7 回调丢失主动查单<br>7.8 申请退款（仅退款 / 退货退款）<br>7.9 退款审核<br>7.10 调用第三方退款<br>7.11 退款成功联动<br>7.12 MQ 异步通知业务更新 | 7.1 生成支付单 / 支付参数<br>7.2 支付宝 / 微信渠道<br>7.3 回调幂等：trade_no 唯一 + 状态前置校验 + 加锁；回调接口不能耗时（第三方重试机制 / 超时）→ 耗时操作 MQ 异步<br>7.4 order_status_log 记录流转<br>7.5 发积分 / 短信；消息可靠性<br>7.6 payment.status：0待支付 1成功 2失败 3已退款<br>7.7 定时扫描待支付单 → 第三方查单兜底<br>7.8 payment_refund 退款状态机（0申请中 1审核通过 2退货中 3退款中 4已退款 5已拒绝；仅退款跳过 2）；refund_type：1仅退款 2退货退款（整单退款，refund_amount=订单实付）<br>7.10 整单退款；退款幂等<br>7.11 回补库存 + 退回优惠券 + 订单状态→已退款；退货退款分支：买家寄回（return_sn）→ 后台确认收货 → 退货入库 → 再打款<br>**表**：payment（trade_no 唯一）、payment_refund（refund_type / return_sn）、product_stock_log（回补 / 退货入库流水）、coupon_user（已使用→未使用） |
@@ -1318,20 +1115,20 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 | **14. 秒杀场景**（mall-seckill） | 14.1 场次管理<br>14.2 秒杀商品配置<br>14.3 库存预热<br>14.4 秒杀下单（Lua 扣减 + 限购）<br>14.5 MQ 削峰异步下单<br>14.6 秒杀结果查询 | 14.1 seckill_session 场次（时间 / 状态）<br>14.2 seckill_product：seckill_price 秒杀价 / seckill_stock 秒杀库存 / limit_per_user 每人限购<br>14.3 活动开始前秒杀库存同步预热到 Redis（配置校验 seckill_stock ≤ sku.stock）<br>14.4 Lua 原子扣减 + 限购校验（防超卖 / 防黄牛；限购计数存 Redis，无 DB 持久化——学习项目可接受，Redis 故障限购失效）<br>14.5 前端快速失败 → MQ 削峰 → 异步创建订单（orders.order_type=2；落单前 order 经 Dubbo 调 seckill 核验 Redis 预扣资格，防绕过秒杀入口直接下单）→ 异步扣 sku.stock（change_type=4）<br>14.6 下单结果轮询 / 通知；秒杀订单超时关单：活动进行中回补 Redis 秒杀库存，活动已结束回补 sku.stock（change_type=9）<br>**表**：seckill_session、seckill_product、orders（order_type=2） |
 | **15. 进销存场景**（mall-product） | 15.1 供应商管理<br>15.2 采购单创建 / 审核<br>15.3 采购入库（分批收货）<br>15.4 库存盘点 / 调整<br>15.5 退货入库<br>15.6 出入库流水对账 | 15.1 product_supplier 供应商档案（联系人 / 电话 / 状态，停用不可下采购单）<br>15.2 product_purchase 状态机（0待审核 1待收货 2部分入库 3已完成 4已取消）+ product_purchase_item 明细（采购价 / 数量 / 已入库数）<br>15.3 分批入库：received_quantity 累计 ≤ quantity，入库事务 = sku.stock 增加 + stock_log 留痕（change_type=5）；库存预警联动 5.5 触发补货<br>15.4 盘点差异调整 stock + 流水留痕（change_type=7，报损 / 报溢）<br>15.5 退款需退货 → 买家寄回 → 后台确认收货 → 退货入库（change_type=6）+ 第三方退款打款<br>15.6 stock_log 按 change_type / biz_sn 聚合对账（进货-销售-退货闭环）<br>为什么先采购入库再上架：销售库存的来源，避免「无货源直接设库存」的空中楼阁<br>**表**：product_supplier、product_purchase、product_purchase_item、product_stock_log（biz_sn / change_type） |
 
-## 开发排期计划
+### 开发排期计划
 
 > 15 个场景全部落地（含第 13 项架构进阶 6 个子项、第 14 项秒杀 6 个子项与第 15 项进销存 6 个子项），按正常电商业务开发顺序（依赖驱动）排期：先地基后业务、先商品后交易、先主链路后增值项。后端以「电商技术场景清单」109 个功能点为准；前端为仓库内 npm 模块（mall-web-admin / mall-web-portal，独立部署），页面按「两平台功能菜单总览」与后端功能同阶段交付。周期按学习型项目每天数小时投入估算，共约 12 周。表格最后一列「进度」为跟进状态，三态取值：未开始 / 进行中 / 已完成，随开发进展手动更新（建议状态变更时同步提交一次 git 留痕）。
 
 | 阶段 | 建议周期 | 对应场景 | 后端交付（关键点） | 前端交付（页面） | 完成标准（里程碑） | 进度 |
 |---|---|---|---|---|---|---|
-| 1. 工程地基 | 第 1 周 | 12.6~12.11（工程横切面） | mall-common 落地：Result<T> / 全局异常 / @Valid 分组校验 / 日志（Logback 滚动文件 + MDC traceId）/ 雪花 ID；接口文档（springdoc 3.1.0，12 服务 doc.html）；mall-mbg 实体生成接入（28 表）；MyBatis-Plus 连通业务库；网关 traceId 过滤器 | 前端脚手架（mall-web-admin / mall-web-portal：路由 / 请求封装 / 状态管理），与网关联调 | 12 服务骨架跑通，前端经网关调通首个接口 | 已完成 |
-| 2. 账号体系 | 第 2 周 | 1（1.1~1.11，积分流水随阶段 6）+ 12.5 | 买家注册登录（BCrypt + JWT 黑名单 + 图形 / 短信验证码）；修改 / 找回密码；网关 JWT 鉴权；收货地址；会员等级；积分查询（写流水随阶段 6 支付）；后台 admin_user 登录 + RBAC 五表 + @PreAuthorize | 前台登录注册 / 个人中心 / 地址管理页（遗留：找回密码页待补，API 已就绪）；后台登录 + 用户 / 角色 / 菜单管理页 | 双账号体系闭环，网关鉴权分流生效 | 已完成 |
-| 3. 商品域与进销存 | 第 3~4 周 | 2.1~2.7 + 15.1~15.4 + 15.6 + 5.1 / 5.5 + 11.1（商品 / 采购表索引） | 分类 / 品牌、SPU/SKU、上下架；供应商档案；采购单状态机（待审核 / 待收货 / 部分入库 / 已完成）；分批入库（加 stock + stock_log 留痕 change_type=5）；盘点调整（change_type=7）；库存查询 / 预警联动补货；收藏（member_favorite）；详情 Redis 缓存三防（穿透 / 击穿 / 雪崩）；缓存预热（@Scheduled 定时 + 手动触发，xxl-job 接入后替换）；图片上传（本地 / OSS 双通道） | 前台商品列表 / 详情页；后台商品 / 分类 / 品牌管理页 + 供应商 / 采购单 / 入库 / 库存管理页 | 进货 → 入库 → 上架链路跑通，缓存三防可演示 | 已完成 |
-| 4. 购物车与营销 | 第 5 周 | 3 + 4 | Redis Hash 购物车；结算前校验（失效标记）；券模板 / 发放 / 领券（SETNX 幂等 + 条件更新防超领）/ 锁券 / 核销 / 退回 / 过期（定时扫描）/ 下单优惠计算（满减 / 折扣） | 购物车页；领券中心、我的优惠券；后台券模板管理页 | 加购 → 选券闭环，超领可压测复现 | 已完成（待测试） |
-| 5. 交易核心 | 第 6~7 周 | 5.2~5.4 + 6.1~6.7 + 8.2 / 8.4 / 8.5 + 11.3 / 11.4 | 下单编排（request_id 幂等 + 乐观锁扣库存 + 锁券 + 明细快照）；订单状态机 + 流水审计；RocketMQ 延迟消息关单；取消回补；Seata AT；本地消息表 tx_message（事务提交后发送 + 定时补发）；死信队列（重试失败 → DLQ） | 订单确认页；订单列表 / 详情页 | 下单-关单闭环（不含支付），超卖复现并修复 | 已完成（待测试） |
-| 6. 支付与履约 | 第 8 周 | 7（7.1~7.12 支付与退款）+ 8.1（支付通知）+ 6.8 / 6.9 + 2.8（评价）+ 1.11（积分流水）+ 15.5（退货入库） | 拉起收银台；模拟支付宝 / 微信回调（trade_no 幂等）；主动查单兜底（定时任务）；MQ 异步通知（发积分 / 退款四路联动）；退款状态机（仅退款 / 退货退款两分支）+ 库存 / 券回补联动；退货分支：买家寄回 → 退货入库（change_type=6）→ 打款；后台发货 + 确认收货 / 超时自动收货；收货后评价 | 收银台页；支付结果页；退款申请页；订单评价页；后台退款审核 + 发货页 | 支付-退款-履约-评价闭环，回调幂等可验证 | 已完成（待测试） |
-| 7. 高并发与运营数据 | 第 9~10 周 | 10 + 11.2 / 11.5 + 12.1~12.4 + 14（秒杀）+ 8.3（秒杀削峰异步下单） | 秒杀全链路（场次 / 商品配置、Redis 预热、Lua 扣减 + 限购、MQ 削峰异步下单、结果查询）；在线人数 / UV / 签到 / 排行榜 / 点赞 / 浏览足迹；Sentinel 限流防刷 + 幂等 token；explain 优化 + 延迟关联分页 | 秒杀活动页；签到 / 排行榜页；后台数据看板 + 秒杀配置页 | Jmeter 压测超卖闭环，全场景可演示 | 未开始 |
-| 8. 架构进阶 | 第 11~12 周 | 13（6 项全做） | 按零风险顺序：Caffeine 多级缓存 → SkyWalking 接入（javaagent）→ 网关限流 → ES 搜索（Java Client）→ Canal binlog 同步 → ShardingSphere 分库分表（Boot 4 适配验证，兜底逻辑分表演示） | ES 搜索联想 / 高亮 | 109 功能点全部闭环 | 未开始 |
+| 1. 工程地基 | 第 1 周 | 12.6～12.11（工程横切面） | mall-common 落地：Result<T> / 全局异常 / @Valid 分组校验 / 日志（Logback 滚动文件 + MDC traceId）/ 雪花 ID；接口文档（springdoc 3.1.0，12 服务 doc.html）；mall-mbg 实体生成接入（28 表）；MyBatis-Plus 连通业务库；网关 traceId 过滤器 | 前端脚手架（mall-web-admin / mall-web-portal：路由 / 请求封装 / 状态管理），与网关联调 | 12 服务骨架跑通，前端经网关调通首个接口 | 已完成 |
+| 2. 账号体系 | 第 2 周 | 1（1.1～1.11，积分流水随阶段 6）+ 12.5 | 买家注册登录（BCrypt + JWT 黑名单 + 图形 / 短信验证码）；修改 / 找回密码；网关 JWT 鉴权；收货地址；会员等级；积分查询（写流水随阶段 6 支付）；后台 admin_user 登录 + RBAC 五表 + @PreAuthorize | 前台登录注册 / 个人中心 / 地址管理页（遗留：找回密码页待补，API 已就绪）；后台登录 + 用户 / 角色 / 菜单管理页 | 双账号体系闭环，网关鉴权分流生效 | 已完成 |
+| 3. 商品域与进销存 | 第 3～4 周 | 2.1～2.7 + 15.1～15.4 + 15.6 + 5.1 / 5.5 + 11.1（商品 / 采购表索引） | 分类 / 品牌、SPU/SKU、上下架；供应商档案；采购单状态机（待审核 / 待收货 / 部分入库 / 已完成）；分批入库（加 stock + stock_log 留痕 change_type=5）；盘点调整（change_type=7）；库存查询 / 预警联动补货；收藏（member_favorite）；详情 Redis 缓存三防（穿透 / 击穿 / 雪崩）；缓存预热（@Scheduled 定时 + 手动触发，xxl-job 接入后替换）；图片上传（本地 / OSS 双通道） | 前台商品列表 / 详情页；后台商品 / 分类 / 品牌管理页 + 供应商 / 采购单 / 入库 / 库存管理页 | 进货 → 入库 → 上架链路跑通，缓存三防可演示 | 已完成 |
+| 4. 购物车与营销 | 第 5 周 | 3 + 4 | Redis Hash 购物车；结算前校验（失效标记）；券模板 / 发放 / 领券（SETNX 幂等 + 条件更新防超领）/ 锁券 / 核销 / 退回 / 过期（定时扫描）/ 下单优惠计算（满减 / 折扣） | 购物车页；领券中心、我的优惠券；后台券模板管理页 | 加购 → 选券闭环，超领可压测复现 | 已完成 |
+| 5. 交易核心 | 第 6～7 周 | 5.2～5.4 + 6.1～6.7 + 8.2 / 8.4 / 8.5 + 11.3 / 11.4 | 下单编排（request_id 幂等 + 乐观锁扣库存 + 锁券 + 明细快照）；订单状态机 + 流水审计；RocketMQ 延迟消息关单；取消回补；Seata AT；本地消息表 tx_message（事务提交后发送 + 定时补发）；死信队列（重试失败 → DLQ） | 订单确认页；订单列表 / 详情页 | 下单-关单闭环（不含支付），超卖复现并修复 | 已完成 |
+| 6. 支付与履约 | 第 8 周 | 7（7.1～7.12 支付与退款）+ 8.1（支付通知）+ 6.8 / 6.9 + 2.8（评价）+ 1.11（积分流水）+ 15.5（退货入库） | 拉起收银台；模拟支付宝 / 微信回调（trade_no 幂等）；主动查单兜底（定时任务）；MQ 异步通知（发积分 / 退款四路联动）；退款状态机（仅退款 / 退货退款两分支）+ 库存 / 券回补联动；退货分支：买家寄回 → 退货入库（change_type=6）→ 打款；后台发货 + 确认收货 / 超时自动收货；收货后评价 | 收银台页；支付结果页；退款申请页；订单评价页；后台退款审核 + 发货页 | 支付-退款-履约-评价闭环，回调幂等可验证 | 已完成 |
+| 7. 高并发与运营数据 | 第 9～10 周 | 10 + 11.2 / 11.5 + 12.1～12.4 + 14（秒杀）+ 8.3（秒杀削峰异步下单） | 秒杀全链路（场次 / 商品配置、Redis 预热、Lua 扣减 + 限购、MQ 削峰异步下单、结果查询）；在线人数 / UV / 签到 / 排行榜 / 点赞 / 浏览足迹；Sentinel 限流防刷 + 幂等 token；explain 优化 + 延迟关联分页 | 秒杀活动页；签到 / 排行榜页；后台数据看板 + 秒杀配置页 | Jmeter 压测超卖闭环，全场景可演示 | 未开始 |
+| 8. 架构进阶 | 第 11～12 周 | 13（6 项全做） | 按零风险顺序：Caffeine 多级缓存 → SkyWalking 接入（javaagent）→ 网关限流 → ES 搜索（Java Client）→ Canal binlog 同步 → ShardingSphere 分库分表（Boot 4 适配验证，兜底逻辑分表演示） | ES 搜索联想 / 高亮 | 109 功能点全部闭环 | 未开始 |
 
 **排期原则：**
 
@@ -1341,4 +1138,3 @@ A：端口冲突只在两种情况下发生：同一容器内的多进程、以�
 4. **数据库场景（11）不单独占阶段**：11.1 索引随各模块建表落地（阶段 3 起，含采购表）；11.3 乐观锁 vs 悲观锁与 11.4 事务隔离级别在阶段 5 扣库存 / Seata 时演示；11.2 explain 与 11.5 大表分页在阶段 7 集中验证
 5. **架构进阶（13）放最后**：不是不重要，而是其价值建立在主线跑通之上——ES 搜索依赖商品数据、Canal 依赖缓存体系、ShardingSphere 依赖订单数据
 6. **前端与后端同阶段交付**：每阶段结束前端页面即可点可用，避免「后端做完前端才开工」的断层
-7. **进度列跟进**：每阶段状态在「进度」列手动维护（未开始 / 进行中 / 已完成），状态变更时建议同步提交一次 git，便于回看进度
