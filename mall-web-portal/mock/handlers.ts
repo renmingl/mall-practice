@@ -512,11 +512,11 @@ export const handlers: MockHandler[] = [
       const item = orderItems.find((i) => i.id === b.orderItemId)
       myComments.unshift({
         id: myComments.length + 1,
-        orderItemId: b.orderItemId,
+        orderItemId: b.orderItemId || 0,
         spuId: item?.spuId || 0,
         spuName: item?.spuName || '',
-        skuSpec: item?.spec,
-        pic: item?.pic,
+        skuSpec: item?.spec || '',
+        pic: item?.pic || '',
         rating: b.rating || 5,
         content: b.content || '',
         pics: (b.pics || []).join(','),

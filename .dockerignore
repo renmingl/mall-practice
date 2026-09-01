@@ -1,0 +1,44 @@
+# ============================================================
+# Docker 构建上下文排除清单（后端通用 Dockerfile 使用，构建上下文=仓库根）
+# 后端镜像构建只需 pom.xml 与 src/，其余（前端/node_modules/文档/产物）全部排除，
+# 否则 COPY . . 会把数百 MB 无关注入构建上下文，构建极慢
+# ============================================================
+
+# Maven / Java
+**/target
+*.jar
+*.war
+
+# 前端（后端构建不需要；前端公共 Dockerfile 构建上下文=仓库根，
+# 只排除产物与依赖，源码需进上下文供 docker/Dockerfile.frontend COPY）
+mall-web-admin/node_modules
+mall-web-admin/dist
+mall-web-portal/node_modules
+mall-web-portal/dist
+**/*.tsbuildinfo
+
+# 日志与运行时产物
+**/logs
+**/uploads
+*.log
+*.err
+
+# 文档与工具（不影响编译）
+docs
+tools
+sql
+*.md
+
+# VCS / IDE / CI
+.git
+.idea
+.github
+
+# 环境变量（含账密，禁止进镜像上下文）
+docker/.env
+
+# 其他临时文件
+tmp-*
+_bak-*
+_build-src
+_import-report.txt

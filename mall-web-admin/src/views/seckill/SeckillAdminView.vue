@@ -118,7 +118,6 @@ function onProductSearch() {
 
 // SKU 搜索选择（商品配置弹窗内）
 const skuOptions = ref<{ value: number; label: string }[]>([])
-const skuKeyword = ref('')
 const skuSearching = ref(false)
 
 async function searchSku(keyword: string) {

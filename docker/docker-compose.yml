@@ -1,37 +1,14 @@
 # ============================================================
-# mall-practice 中间件编排文件（按需启动版）
-# 本文件位于 docker/ 目录：docker-compose.yml 与 .env、各中间件配置文件（canal/、rocketmq/）统一放在这里，
-# compose 会自动读取同目录的 .env（无需 --env-file 指定）；所有 compose 命令请在 docker/ 目录下执行。
-#
-# 默认只启动 3 个基础中间件 Nacos + MySQL + Redis（合计约 1GB 内存）：
-#   命令：docker compose up -d
-#
-# 其余中间件按学习阶段用 profile 按需启动（不启动不占内存）：
-#   消息队列阶段：   docker compose --profile rocketmq up -d
-#   分布式事务阶段： docker compose --profile seata up -d
-#   搜索阶段：       docker compose --profile search up -d
-#   任务调度阶段：   docker compose --profile task up -d   （自动带起 MySQL）
-#   链路追踪阶段：   docker compose --profile trace up -d
-#   全部启动：       docker compose --profile rocketmq --profile seata --profile search --profile task --profile trace up -d
-#   停止并移除：     docker compose down
-#   仅停止不删数据： docker compose stop
-#
-# 按需删除规则：本机已安装哪个服务（如 MySQL/Redis），就删除下方对应的服务段，避免端口冲突
-# 首次执行会自动拉取镜像（共约 3GB，建议先配置国内镜像加速器）
-#
-# ---------- 数据持久化根目录（.env 可配置，无需改本文件） ----------
-# 所有中间件数据统一存到 ${DOCKER_DATA_DIR} 下的各自子目录（mysql/redis/nacos/...）；
-# DOCKER_DATA_DIR 未配置时启动报错；首次使用请复制 .env.example 为 .env 并设置
-#
-# ---------- 连接本机数据库 vs Docker 容器数据库的区别 ----------
-# 本机已装 MySQL/Redis（从 yaml 删除 mysql/redis 段）：容器内应用访问宿主机数据库
-#   必须使用 host.docker.internal（Docker Desktop 专用域名，指向宿主机），如：
-#   jdbc:mysql://host.docker.internal:3306/xxl_job
-# 未装 MySQL/Redis（保留容器版）：容器与应用同处一个 compose 网络
-#   直接用服务名互访（Compose 网络内置 DNS），如：jdbc:mysql://mysql:3306/xxl_job
-#   注意：启用容器版 MySQL 时，需同步将下方 xxl-job 的 PARAMS 改为 mysql:3306
+# mall-practice 中间件编排（镜像来自 Docker Hub，按需启动）
+# 用法（在 docker/ 目录执行；自动读取同目录 .env，数据目录与账密见 .env.example）：
+#   docker compose up -d                         # 基础：Nacos + MySQL + Redis
+#   docker compose --profile rocketmq up -d      # 消息队列 RocketMQ
+#   docker compose --profile seata up -d         # 分布式事务 Seata
+#   docker compose --profile search up -d        # 搜索 Elasticsearch + Canal
+#   docker compose --profile task up -d          # 任务调度 XXL-Job
+#   docker compose --profile trace up -d         # 链路追踪 SkyWalking
+# 微服务 + 前端应用见 docker-compose.apps.yml（一键全起：docker/build-and-run.cmd）
 # ============================================================
-
 services:
   # ---------- 注册中心 + 配置中心 ----------
   nacos:
@@ -47,11 +24,10 @@ services:
       - JVM_XMX=256m
       - JVM_XMN=128m
     ports:
-      - "8848:8848"   # 服务端 HTTP API
-      - "8849:8080"   # Nacos 3.x 控制台 UI（拆分为独立 8080 端口，映射到宿主机 8849）
+      - "8848:8848"
+      - "8849:8080"   # Nacos 3.x 控制台 UI（独立 8080，映射宿主机 8849）
       - "9848:9848"   # gRPC（客户端注册）
     volumes:
-      # Derby 数据（注册/配置）持久化；无卷时容器重建会回到空库甚至遇到中断损坏的脏数据
       - ${DOCKER_DATA_DIR}/nacos:/home/nacos/data
     restart: unless-stopped
 
@@ -76,12 +52,11 @@ services:
     environment:
       - JAVA_OPT_EXT=-Xms512m -Xmx512m -Xmn256m
     ports:
-      - "10909:10909"  # VIP 通道
-      - "10911:10911"  # 客户端连接端口
+      - "10909:10909"
+      - "10911:10911"
     volumes:
       # brokerIP1=127.0.0.1 保证宿主机客户端经端口映射可达 Broker
       - ./rocketmq/broker.conf:/home/rocketmq/rocketmq-5.3.2/conf/broker.conf
-      # 消息存储（commitlog/consumequeue）持久化，容器重建不丢消息
       - ${DOCKER_DATA_DIR}/rocketmq-broker:/home/rocketmq/store
     command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/rocketmq-5.3.2/conf/broker.conf
     restart: unless-stopped
@@ -95,7 +70,7 @@ services:
     environment:
       - JAVA_OPTS=-Drocketmq.namesrv.addr=rocketmq-namesrv:9876 -Dserver.port=8080 -Xms256m -Xmx256m
     ports:
-      - "9081:8080"   # http://localhost:9081
+      - "9081:8080"
     restart: unless-stopped
 
   # ---------- 分布式事务 ----------
@@ -113,7 +88,6 @@ services:
       - "7091:7091"
       - "8091:8091"       # 事务 RPC 端口（客户端配置指向 127.0.0.1:8091）
     volumes:
-      # file 模式事务日志（sessionStore）持久化
       - ${DOCKER_DATA_DIR}/seata:/seata-server/sessionStore
     restart: unless-stopped
 
@@ -129,14 +103,11 @@ services:
     ports:
       - "9200:9200"
     volumes:
-      # 索引数据持久化，容器重建不丢索引
       - ${DOCKER_DATA_DIR}/elasticsearch:/usr/share/elasticsearch/data
     restart: unless-stopped
 
-  # Canal Server：MySQL binlog 增量同步（阶段 8 13.1 商品索引增量同步，mall-search 消费端可选启用）
-  # 注意：当前使用容器版 MySQL（master.address=mysql:3306）；若改用本机 MySQL，需将
-  #       canal/instance.properties 的 master.address 改为 host.docker.internal:3306
-  #       并确保 MySQL 开启 binlog（ROW 格式，MySQL 8 默认开启）
+  # Canal Server：MySQL binlog 增量同步（mall-search 消费端，--profile search）
+  # 注意：若改用本机 MySQL，需把 canal/instance.properties 的 master.address 改为 host.docker.internal:3306
   canal-server:
     image: canal/canal-server:v1.1.7
     container_name: mall-canal
@@ -144,16 +115,15 @@ services:
     depends_on:
       - mysql
     ports:
-      - "11111:11111"  # canal client 连接端口（mall-search 的 elasticsearch.canal.port 指向）
+      - "11111:11111"
     volumes:
       # 实例配置：订阅 mall 库全部表 + 连接 MySQL 账号密码（example 实例）
       - ./canal/instance.properties:/home/admin/canal-server/conf/example/instance.properties
     restart: unless-stopped
 
   # ---------- 任务调度 ----------
-  # 注意：启动前需在 MySQL 创建 xxl_job 库并导入仓库 sql/xxl_job.sql（3.1.0 版表结构），
-  # 并将下方 spring.datasource.username/password 改为你的 MySQL 账号密码（在 .env 的 XXL_JOB_DB_USERNAME/XXL_JOB_DB_PASSWORD 配置）。
-  # 连接地址：当前使用容器版 MySQL（mysql:3306）；若改回本机 MySQL 则换回 host.docker.internal:3306。
+  # 注意：启动前需在 MySQL 导入 sql/xxl_job.sql 建 xxl_job 库（账密在 .env 的 XXL_JOB_DB_*）；
+  # 若改回本机 MySQL，连接地址换回 host.docker.internal:3306
   xxl-job:
     image: xuxueli/xxl-job-admin:3.1.0   # 3.x 基于 JDK17，与项目技术栈对齐（表结构用 sql/xxl_job.sql 3.1.0 版）
     container_name: mall-xxl-job
@@ -164,7 +134,7 @@ services:
       - JAVA_OPTS=-Xms256m -Xmx256m
       - PARAMS=--spring.datasource.url=jdbc:mysql://mysql:3306/xxl_job?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true --spring.datasource.username=${XXL_JOB_DB_USERNAME} --spring.datasource.password=${XXL_JOB_DB_PASSWORD} --server.port=8080
     ports:
-      - "9080:8080"   # 控制台 http://localhost:9080/xxl-job-admin
+      - "9080:8080"
     restart: unless-stopped
 
   # ---------- 链路追踪 ----------
@@ -190,26 +160,25 @@ services:
       - SW_OAP_ADDRESS=http://skywalking-oap:12800
       - JAVA_OPTS=-Xms256m -Xmx256m
     ports:
-      - "9090:8080"    # http://localhost:9090
+      - "9090:8080"
     restart: unless-stopped
 
-  # ---------- MySQL / Redis（容器版；若改用本机安装则删除对应服务段） ----------
-  # 数据通过 bind mount 持久化到宿主机 ${DOCKER_DATA_DIR} 下的各自目录
+  # ---------- MySQL / Redis（容器版；本机已装可删对应段） ----------
   mysql:
     image: mysql:8.3
     container_name: mall-mysql
     ports:
       - "3306:3306"
     volumes:
-      - ${DOCKER_DATA_DIR}/mysql:/var/lib/mysql   # 数据目录
+      - ${DOCKER_DATA_DIR}/mysql:/var/lib/mysql
     restart: unless-stopped
 
   redis:
     image: redis:7.2
     container_name: mall-redis
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}   # 开启 AOF 持久化 + 访问密码（账密在 .env 配置；需与各模块 application.yml 的 redis.password 一致）
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}   # AOF 持久化 + 访问密码（需与各模块 application.yml 的 redis.password 一致）
     ports:
       - "6379:6379"
     volumes:
-      - ${DOCKER_DATA_DIR}/redis:/data             # AOF 持久化目录
+      - ${DOCKER_DATA_DIR}/redis:/data
     restart: unless-stopped

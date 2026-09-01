@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
       port: 5174,
       strictPort: true, // 端口被占用时直接报错（不自动顺延，避免出现非预期端口）
       proxy: mock
-        ? {}
+        ? undefined
         : {
             '/api': {
               target: env.VITE_GATEWAY_URL || 'http://localhost:8080',

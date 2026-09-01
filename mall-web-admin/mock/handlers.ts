@@ -179,7 +179,7 @@ export const handlers: MockHandler[] = [
     method: 'POST', url: '/admin/menu', handler: (ctx) => {
       const b = ctx.body as { parentId?: number; name?: string }
       const parent = menuTree.find((m) => m.id === b?.parentId)
-      const node = { id: 100 + nextId(flatMenus(menuTree)), parentId: b?.parentId || 0, name: b?.name || '新菜单', type: 2, path: '', perms: null, icon: null, sort: 99, status: 1, children: [] }
+      const node = { id: 100 + nextId(flatMenus(menuTree) as { id: number }[]), parentId: b?.parentId || 0, name: b?.name || '新菜单', type: 2, path: '', perms: null, icon: null, sort: 99, status: 1, children: [] }
       if (parent) parent.children.push(node as never)
       else menuTree.push(node as never)
       return null

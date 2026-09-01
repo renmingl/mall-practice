@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { checkin, getCheckinStatus, type CheckinStatus } from '@/api/seckill'
-
-const router = useRouter()
 
 const status = ref<CheckinStatus | null>(null)
 const loading = ref(false)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, type FormInstance } from 'element-plus'
-import { deliverOrder, getAdminOrderPage, type AdminOrderPageRow } from '@/api/order'
+import { deliverOrder, getAdminOrderPage, type AdminOrderItemRow, type AdminOrderPageRow } from '@/api/order'
 
 // ---------- 列表 ----------
 
@@ -23,6 +23,11 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+/** 商品件数合计（展开行展示） */
+function itemCount(items: AdminOrderItemRow[]) {
+  return items.reduce((s, i) => s + i.quantity, 0)
 }
 
 function onSearch() {
@@ -105,7 +110,7 @@ onMounted(load)
         </el-table-column>
         <el-table-column prop="order.orderSn" label="订单号" min-width="180" show-overflow-tooltip />
         <el-table-column label="商品件数" width="90">
-          <template #default="{ row }">{{ row.items.reduce((s: number, i: { quantity: number }) => s + i.quantity, 0) }}</template>
+          <template #default="{ row }">{{ itemCount(row.items) }}</template>
         </el-table-column>
         <el-table-column label="商品金额" width="100">
           <template #default="{ row }">¥{{ Number(row.order.totalAmount).toFixed(2) }}</template>

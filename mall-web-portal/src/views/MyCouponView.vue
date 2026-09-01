@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { getMyCoupons, type MyCouponRow } from '@/api/coupon'
 
-const router = useRouter()
 const loading = ref(false)
 const list = ref<MyCouponRow[]>([])
 const total = ref(0)

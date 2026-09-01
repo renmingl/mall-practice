@@ -37,7 +37,7 @@ function fmtTime(t?: string) {
 }
 
 /** 场次是否可抢（进行中） */
-function canBuy(p: SeckillProductItem) {
+function canBuy() {
   return currentSession.value?.phase === 'ongoing'
 }
 
@@ -195,10 +195,10 @@ onMounted(loadSessions)
             round
             type="danger"
             :loading="buyingId === p.id"
-            :disabled="!canBuy(p) || p.remainStock <= 0"
+            :disabled="!canBuy() || p.remainStock <= 0"
             @click="onBuy(p)"
           >
-            {{ p.remainStock <= 0 ? '已抢光' : canBuy(p) ? '立即抢购' : '未开始' }}
+            {{ p.remainStock <= 0 ? '已抢光' : canBuy() ? '立即抢购' : '未开始' }}
           </van-button>
         </div>
       </template>

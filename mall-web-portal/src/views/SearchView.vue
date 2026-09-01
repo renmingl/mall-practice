@@ -74,6 +74,11 @@ function onSelectSuggest(name: string) {
   doSearch()
 }
 
+/** 联想浮层失焦关闭（延迟避免吞掉联想项点击） */
+function onSuggestBlur() {
+  window.setTimeout(() => (showSuggest.value = false), 200)
+}
+
 function goDetail(r: SearchRecord) {
   router.push(`/product/${r.spuId}`)
 }
@@ -99,7 +104,7 @@ onMounted(() => {
         @update:model-value="onKeywordChange"
         @search="doSearch"
         @clear="doSearch"
-        @blur="setTimeout(() => (showSuggest = false), 200)"
+        @blur="onSuggestBlur"
       >
         <template #action>
           <span @click="doSearch">搜索</span>

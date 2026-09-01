@@ -1,0 +1,238 @@
+# ============================================================
+# mall-practice 微服务 + 前端应用编排（镜像由源码构建；与 docker-compose.yml 中间件拆分）
+# 用法（在 docker/ 目录执行）：
+#   docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile rocketmq --profile seata --profile task up -d   # 一条命令全起
+#   docker compose -f docker-compose.apps.yml up -d          # 仅起应用（先起中间件）
+#   docker compose -f docker-compose.apps.yml build          # 仅构建镜像
+#   docker compose -f docker-compose.apps.yml pull           # 从远程仓库拉镜像（配合 IMAGE_PREFIX）
+# 说明：两文件同目录运行共享同一网络，应用直接用服务名访问中间件；
+#   应用段不写 depends_on（跨文件无效），启动失败自动重启直至中间件就绪；
+#   镜像命名 ${IMAGE_PREFIX:-mall-practice}/<模块>:${APP_TAG:-latest}
+# ============================================================
+
+# 环境变量锚点：覆盖各模块 application.yml 写死的 127.0.0.1 为容器服务名（Spring Boot 宽松绑定，零代码改动）
+x-app-env: &app-env-base
+  # JVM 内存限制：12 个服务全开约 4GB，内存紧张可单独 docker compose stop 部分服务
+  JAVA_OPTS: -Xms128m -Xmx256m
+  SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+  SPRING_DATA_REDIS_HOST: redis
+  SPRING_DATA_REDIS_PORT: "6379"
+  SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+x-app-env-db: &app-env-db
+  <<: *app-env-base
+  SPRING_DATASOURCE_URL: 'jdbc:mysql://mysql:3306/mall?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true'
+  SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+  SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+services:
+  # ---------- 微服务（12；容器内统一 8080，宿主机端口见 docs/deployment.md） ----------
+  mall-auth:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-auth:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-auth
+    restart: unless-stopped
+    environment:
+      <<: *app-env-db
+    ports:
+      - "8100:8080"
+
+  mall-admin:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-admin:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-admin
+    restart: unless-stopped
+    environment:
+      <<: *app-env-base
+    ports:
+      - "8200:8080"
+
+  mall-portal:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-portal:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-portal
+    restart: unless-stopped
+    environment:
+      <<: *app-env-base
+    ports:
+      - "8300:8080"
+
+  mall-member:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-member:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-member
+    restart: unless-stopped
+    environment:
+      <<: *app-env-db
+      # RocketMQ（spring-cloud-stream binder）
+      SPRING_CLOUD_STREAM_ROCKETMQ_BINDER_NAME_SERVER: rocketmq-namesrv:9876
+    ports:
+      - "8400:8080"
+
+  mall-product:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-product:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-product
+    restart: unless-stopped
+    environment:
+      <<: *app-env-db
+      # RocketMQ（退款回补库存消费者）
+      SPRING_CLOUD_STREAM_ROCKETMQ_BINDER_NAME_SERVER: rocketmq-namesrv:9876
+      XXL_JOB_ADMIN_ADDRESSES: http://xxl-job:8080/xxl-job-admin
+      # Seata 事务协调器（grouplist.default）
+      SEATA_SERVICE_GROUPLIST_DEFAULT: seata:8091
+    ports:
+      - "8500:8080"
+    volumes:
+      # 图片本地存储通道持久化（application.yml 的 mall.product.upload-dir=./uploads 相对工作目录 /app）
+      - ${DOCKER_DATA_DIR}/product-uploads:/app/uploads
+
+  mall-cart:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-cart:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-cart
+    restart: unless-stopped
+    environment:
+      <<: *app-env-base
+    ports:
+      - "8600:8080"
+
+  mall-order:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-order:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-order
+    restart: unless-stopped
+    environment:
+      <<: *app-env-db
+      # RocketMQ（关单/退款/秒杀削峰消费者）
+      SPRING_CLOUD_STREAM_ROCKETMQ_BINDER_NAME_SERVER: rocketmq-namesrv:9876
+      XXL_JOB_ADMIN_ADDRESSES: http://xxl-job:8080/xxl-job-admin
+      # Seata 全局事务发起方
+      SEATA_SERVICE_GROUPLIST_DEFAULT: seata:8091
+      # Dubbo 注册中心（秒杀核验/关单回补 RPC）
+      DUBBO_REGISTRY_ADDRESS: nacos://nacos:8848
+    ports:
+      - "8700:8080"
+
+  mall-payment:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-payment:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-payment
+    restart: unless-stopped
+    environment:
+      <<: *app-env-db
+      # RocketMQ（退款联动/返积分发送）
+      SPRING_CLOUD_STREAM_ROCKETMQ_BINDER_NAME_SERVER: rocketmq-namesrv:9876
+      XXL_JOB_ADMIN_ADDRESSES: http://xxl-job:8080/xxl-job-admin
+    ports:
+      - "8800:8080"
+
+  mall-coupon:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-coupon:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-coupon
+    restart: unless-stopped
+    environment:
+      <<: *app-env-db
+      # RocketMQ（退款退券消费者）
+      SPRING_CLOUD_STREAM_ROCKETMQ_BINDER_NAME_SERVER: rocketmq-namesrv:9876
+      XXL_JOB_ADMIN_ADDRESSES: http://xxl-job:8080/xxl-job-admin
+      # Seata 事务参与方
+      SEATA_SERVICE_GROUPLIST_DEFAULT: seata:8091
+    ports:
+      - "8900:8080"
+
+  mall-seckill:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-seckill:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-seckill
+    restart: unless-stopped
+    environment:
+      <<: *app-env-db
+      # RocketMQ（秒杀削峰异步下单）
+      SPRING_CLOUD_STREAM_ROCKETMQ_BINDER_NAME_SERVER: rocketmq-namesrv:9876
+      XXL_JOB_ADMIN_ADDRESSES: http://xxl-job:8080/xxl-job-admin
+      # Dubbo 注册中心（Triple 协议 Provider）
+      DUBBO_REGISTRY_ADDRESS: nacos://nacos:8848
+    ports:
+      - "9000:8080"
+
+  mall-search:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-search:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-search
+    restart: unless-stopped
+    environment:
+      <<: *app-env-db
+      # Elasticsearch（docker compose --profile search 启动后搜索功能才可用；Canal 默认关闭）
+      ELASTICSEARCH_URIS: http://elasticsearch:9200
+    ports:
+      - "9100:8080"
+
+  mall-gateway:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-gateway:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        MODULE: mall-gateway
+    restart: unless-stopped
+    environment:
+      <<: *app-env-base
+    ports:
+      - "8080:8080"
+
+  # ---------- 前端（Nginx 托管静态产物，同域反代网关；公共镜像 docker/Dockerfile.frontend） ----------
+  mall-web-admin:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-web-admin:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        APP_DIR: mall-web-admin
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+  mall-web-portal:
+    image: ${IMAGE_PREFIX:-mall-practice}/mall-web-portal:${APP_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        APP_DIR: mall-web-portal
+    ports:
+      - "5174:80"
+    restart: unless-stopped

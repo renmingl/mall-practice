@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { payOrder } from '@/api/order'
-import { mockPayCallback, queryPayment, type Payment } from '@/api/payment'
+import { mockPayCallback, type Payment } from '@/api/payment'
 
 const route = useRoute()
 const router = useRouter()
@@ -39,7 +39,7 @@ async function onPay() {
   if (!payment.value) return
   paying.value = true
   try {
-    const result = await mockPayCallback(payment.value.paymentSn)
+    await mockPayCallback(payment.value.paymentSn)
     showToast('支付成功')
     router.replace(`/pay-result?orderSn=${orderSn}`)
   } catch {

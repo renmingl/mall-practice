@@ -1,4 +1,5 @@
 import request from './request'
+import type { Payment } from './payment'
 
 // ---------- 订单（mall-order；需登录） ----------
 
@@ -86,16 +87,7 @@ export function confirmReceive(orderSn: string) {
 
 /** 拉起收银台：创建支付流水，返回收银台所需信息 */
 export function payOrder(orderSn: string, payType: number) {
-  return request.post<{
-    id: number
-    paymentSn: string
-    orderId: number
-    orderSn: string
-    memberId: number
-    payAmount: number
-    payType: number
-    status: number
-  }>(`/order/${orderSn}/pay`, null, { params: { payType } })
+  return request.post<Payment>(`/order/${orderSn}/pay`, null, { params: { payType } })
 }
 
 /** 订单详情（订单头 + 明细 + 状态流水） */
