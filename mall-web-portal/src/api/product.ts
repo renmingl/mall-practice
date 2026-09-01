@@ -31,6 +31,8 @@ export interface Spu {
   status?: number
   sort?: number
   sales?: number
+  /** 最低价（首页热销接口附带） */
+  price?: number
   createTime?: string
 }
 
@@ -51,7 +53,23 @@ export interface ProductDetail {
   brandName?: string
 }
 
+/** 首页 Banner（运营位） */
+export interface Banner {
+  id: number
+  title: string
+  subtitle: string
+  color1: string
+  color2: string
+  emoji: string
+  link: string
+}
+
 // ---------- 商品 ----------
+
+/** 首页运营 Banner 列表 */
+export function getBanners() {
+  return request.get<Banner[]>('/portal/banner')
+}
 
 /** 前台分类树（仅启用） */
 export function getCategories() {

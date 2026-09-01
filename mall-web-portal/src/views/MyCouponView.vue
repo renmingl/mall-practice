@@ -40,11 +40,7 @@ onMounted(load)
 
 <template>
   <div class="my-coupon">
-    <van-nav-bar title="我的优惠券" fixed placeholder>
-      <template #left>
-        <van-icon name="arrow-left" @click="router.back()" />
-      </template>
-    </van-nav-bar>
+    <h2 class="page-title">我的优惠券</h2>
 
     <van-tabs v-model:active="activeStatus" @change="onTabChange">
       <van-tab v-for="t in tabs" :key="String(t.value)" :name="t.value" :title="t.label" />
@@ -78,7 +74,7 @@ onMounted(load)
 
 <style scoped>
 .my-coupon {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
   padding: 12px;
 }

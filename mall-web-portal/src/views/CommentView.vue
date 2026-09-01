@@ -34,11 +34,7 @@ async function onSubmit() {
 
 <template>
   <div class="comment-page">
-    <van-nav-bar title="发表评价" fixed placeholder>
-      <template #left>
-        <van-icon name="arrow-left" @click="router.back()" />
-      </template>
-    </van-nav-bar>
+    <h2 class="page-title">发表评价</h2>
 
     <van-cell-group inset title="商品评分">
       <div class="rate-wrap">
@@ -65,7 +61,7 @@ async function onSubmit() {
 
 <style scoped>
 .comment-page {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
   padding-bottom: 80px;
 }
@@ -77,7 +73,7 @@ async function onSubmit() {
   bottom: 0;
   left: 0;
   right: 0;
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
   padding: 12px 16px;
   background: #fff;

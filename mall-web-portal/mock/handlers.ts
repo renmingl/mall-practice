@@ -4,7 +4,7 @@ import {
   orders, orderItems, orderById, payments, refunds,
   couponTemplates, myCoupons, seckillSessions, seckillProducts, sessionPhase,
   profile, pointLogs, addresses, favorites, browseHistory, checkinState,
-  myComments, likedSpuIds, likeCountMap,
+  myComments, likedSpuIds, likeCountMap, banners,
   clone, paginate, fmtDateTime, nextOrderId
 } from './db'
 
@@ -57,7 +57,12 @@ function productPage(query: Record<string, string>) {
   if (query.categoryId) list = list.filter((s) => String(s.categoryId) === query.categoryId)
   if (query.brandId) list = list.filter((s) => String(s.brandId) === query.brandId)
   if (query.keyword) list = list.filter((s) => s.name.includes(query.keyword) || (s.subtitle || '').includes(query.keyword))
-  return paginate(list, page, size)
+  // 附带最低价（SKU 取 min），供商品卡片直接展示
+  const withPrice = list.map((s) => {
+    const prices = skus.filter((k) => k.spuId === s.id && k.status === 1).map((k) => k.price)
+    return { ...clone(s), price: prices.length ? Math.min(...prices) : 0 }
+  })
+  return paginate(withPrice, page, size)
 }
 
 function spuDetail(id: number) {
@@ -99,6 +104,9 @@ function createPaymentForOrder(o: (typeof orders)[number], payType: number) {
 // ---------- Handler 注册表 ----------
 
 export const handlers: MockHandler[] = [
+  // ---- 首页运营位 ----
+  { method: 'GET', url: '/portal/banner', handler: () => clone(banners) },
+
   // ---- 认证 ----
   { method: 'GET', url: '/auth/captcha', handler: () => ({ uuid: 'mock-captcha-uuid', imgBase64: captchaImg(captchaCode) }) },
   { method: 'GET', url: '/auth/captcha/sms', handler: (ctx) => ({ phone: ctx.query.phone, smsCode: '123456' }) },
@@ -122,7 +130,11 @@ export const handlers: MockHandler[] = [
   {
     method: 'GET', url: '/product/hot', handler: (ctx) => {
       const limit = Number(ctx.query.limit || 10)
-      return clone(spus.filter((s) => s.status === 1).sort((a, b) => b.sales - a.sales).slice(0, limit))
+      // 附带最低价（SKU 取 min），供首页商品卡片直接展示
+      return clone(spus.filter((s) => s.status === 1).sort((a, b) => b.sales - a.sales).slice(0, limit)).map((s) => {
+        const prices = skus.filter((k) => k.spuId === s.id && k.status === 1).map((k) => k.price)
+        return { ...s, price: prices.length ? Math.min(...prices) : 0 }
+      })
     }
   },
 

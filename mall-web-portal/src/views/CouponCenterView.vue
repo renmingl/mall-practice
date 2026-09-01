@@ -48,14 +48,7 @@ onMounted(load)
 
 <template>
   <div class="coupon-center">
-    <van-nav-bar title="领券中心" fixed placeholder>
-      <template #left>
-        <van-icon name="arrow-left" @click="router.back()" />
-      </template>
-      <template #right>
-        <span class="nav-link" @click="router.push('/my-coupons')">我的券</span>
-      </template>
-    </van-nav-bar>
+    <h2 class="page-title">领券中心<span class="page-title-link"><span class="nav-link" @click="router.push('/my-coupons')">我的券</span></span></h2>
 
     <van-empty v-if="!loading && !list.length" description="暂无进行中的优惠券活动" />
 
@@ -98,7 +91,7 @@ onMounted(load)
 
 <style scoped>
 .coupon-center {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
   padding: 12px;
 }

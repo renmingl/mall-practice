@@ -8,7 +8,6 @@ import com.mall.common.exception.BizException;
 import com.mall.coupon.dto.CouponSaveDTO;
 import com.mall.mbg.entity.Coupon;
 import com.mall.mbg.entity.CouponUser;
-import com.mall.mbg.entity.Orders;
 import com.mall.mbg.mapper.CouponMapper;
 import com.mall.mbg.mapper.CouponUserMapper;
 import com.mall.mbg.mapper.OrdersMapper;

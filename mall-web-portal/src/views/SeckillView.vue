@@ -155,14 +155,7 @@ onMounted(loadSessions)
 
 <template>
   <div class="seckill-page">
-    <van-nav-bar title="限时秒杀" fixed placeholder>
-      <template #left>
-        <span class="nav-link" @click="router.push('/')">首页</span>
-      </template>
-      <template #right>
-        <span class="nav-link" @click="router.push('/rank')">排行</span>
-      </template>
-    </van-nav-bar>
+    <h2 class="page-title">限时秒杀<span class="page-title-link"><span class="nav-link" @click="router.push('/rank')">排行</span></span></h2>
 
     <van-notice-bar left-icon="volume-o" text="秒杀库存有限先到先得，每人限购以场次配置为准；下单结果稍候查询" />
 
@@ -248,7 +241,7 @@ onMounted(loadSessions)
 
 <style scoped>
 .seckill-page {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
   padding-bottom: 24px;
 }

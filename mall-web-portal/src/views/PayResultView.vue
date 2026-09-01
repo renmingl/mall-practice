@@ -37,11 +37,7 @@ onBeforeUnmount(stopPoll)
 
 <template>
   <div class="pay-result">
-    <van-nav-bar title="支付结果" fixed placeholder>
-      <template #left>
-        <van-icon name="arrow-left" @click="router.back()" />
-      </template>
-    </van-nav-bar>
+    <h2 class="page-title">支付结果</h2>
 
     <div v-if="payment" class="result-body">
       <van-icon
@@ -74,7 +70,7 @@ onBeforeUnmount(stopPoll)
 
 <style scoped>
 .pay-result {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
 }
 .result-body {

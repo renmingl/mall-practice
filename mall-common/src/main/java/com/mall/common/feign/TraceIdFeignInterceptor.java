@@ -3,7 +3,6 @@ package com.mall.common.feign;
 import com.mall.common.constant.CommonConstants;
 import com.mall.common.trace.TraceIdUtil;
 import feign.RequestInterceptor;
-import feign.RequestTemplate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;

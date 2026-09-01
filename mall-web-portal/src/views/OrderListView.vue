@@ -39,11 +39,7 @@ onMounted(load)
 
 <template>
   <div class="order-list">
-    <van-nav-bar title="我的订单" fixed placeholder>
-      <template #left>
-        <van-icon name="arrow-left" @click="router.back()" />
-      </template>
-    </van-nav-bar>
+    <h2 class="page-title">我的订单</h2>
 
     <van-tabs v-model:active="activeStatus" @change="onTabChange">
       <van-tab v-for="t in tabs" :key="String(t.value)" :name="t.value" :title="t.label" />
@@ -79,7 +75,7 @@ onMounted(load)
 
 <style scoped>
 .order-list {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
   padding-bottom: 20px;
 }

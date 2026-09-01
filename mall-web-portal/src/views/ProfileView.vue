@@ -80,31 +80,31 @@ onMounted(load)
     </div>
 
     <!-- 等级与积分 -->
-    <van-cell-group inset title="等级权益">
-      <van-cell title="会员等级" :value="pointsData?.levelInfo.name || '-'" />
-      <van-cell title="当前积分" :value="`${pointsData?.points ?? 0} 分`" />
-      <van-cell
-        title="会员折扣"
-        :value="pointsData ? `${(pointsData.levelInfo.discount * 10).toFixed(1)} 折` : '-'"
-      />
-    </van-cell-group>
+    <div class="cell-group-wide">
+      <van-cell-group inset title="等级权益">
+        <van-cell title="会员等级" :value="pointsData?.levelInfo.name || '-'" />
+        <van-cell title="当前积分" :value="`${pointsData?.points ?? 0} 分`" />
+        <van-cell
+          title="会员折扣"
+          :value="pointsData ? `${(pointsData.levelInfo.discount * 10).toFixed(1)} 折` : '-'"
+        />
+      </van-cell-group>
 
-    <!-- 我的服务 -->
-    <van-cell-group inset title="我的服务">
-      <van-cell title="收货地址" is-link to="/address" icon="location-o" />
-      <van-cell title="退出登录" is-link @click="onLogout" />
-    </van-cell-group>
+      <van-cell-group inset title="我的服务">
+        <van-cell title="收货地址" is-link to="/address" icon="location-o" />
+        <van-cell title="退出登录" is-link @click="onLogout" />
+      </van-cell-group>
 
-    <!-- 阶段 7：秒杀与运营入口 -->
-    <van-cell-group inset title="限时秒杀">
-      <van-cell title="秒杀会场" is-link to="/seckill" icon="flash" />
-      <van-cell title="排行榜" is-link to="/rank" icon="award-o" />
-    </van-cell-group>
+      <van-cell-group inset title="限时秒杀">
+        <van-cell title="秒杀会场" is-link to="/seckill" icon="flash" />
+        <van-cell title="排行榜" is-link to="/rank" icon="award-o" />
+      </van-cell-group>
 
-    <van-cell-group inset title="我的数据">
-      <van-cell title="每日签到" is-link to="/checkin" icon="calendar-o" />
-      <van-cell title="浏览足迹" is-link to="/history" icon="eye-o" />
-    </van-cell-group>
+      <van-cell-group inset title="我的数据">
+        <van-cell title="每日签到" is-link to="/checkin" icon="calendar-o" />
+        <van-cell title="浏览足迹" is-link to="/history" icon="eye-o" />
+      </van-cell-group>
+    </div>
 
     <!-- 编辑弹层 -->
     <van-popup v-model:show="showEdit" position="bottom" round>
@@ -133,7 +133,7 @@ onMounted(load)
 
 <style scoped>
 .profile-page {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
   padding: 16px;
 }
@@ -144,6 +144,12 @@ onMounted(load)
   padding: 24px 16px;
   background: #fff;
   border-radius: 8px;
+}
+.cell-group-wide {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 16px;
 }
 .avatar-fallback {
   width: 64px;

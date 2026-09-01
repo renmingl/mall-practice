@@ -100,7 +100,7 @@ onMounted(loadCaptcha)
 
 <style scoped>
 .login-page {
-  max-width: 480px;
+  max-width: 560px;
   margin: 0 auto;
   padding-top: 12vh;
 }

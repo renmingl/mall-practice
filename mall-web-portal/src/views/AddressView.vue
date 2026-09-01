@@ -110,7 +110,7 @@ onMounted(load)
 
 <template>
   <div class="address-page">
-    <van-nav-bar title="收货地址" left-arrow @click-left="$router.back()" />
+    <h2 class="page-title">收货地址</h2>
 
     <van-address-list
       v-model:chosen-address-id="chosenId"

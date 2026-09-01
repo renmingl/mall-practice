@@ -42,11 +42,7 @@ onMounted(load)
 
 <template>
   <div class="checkin-page">
-    <van-nav-bar title="每日签到" fixed placeholder>
-      <template #left>
-        <span class="nav-link" @click="router.push('/')">首页</span>
-      </template>
-    </van-nav-bar>
+    <h2 class="page-title">每日签到</h2>
 
     <div class="hero">
       <van-icon name="calendar-o" size="64" color="#ff976a" />
@@ -75,7 +71,7 @@ onMounted(load)
 
 <style scoped>
 .checkin-page {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
 }
 .nav-link {

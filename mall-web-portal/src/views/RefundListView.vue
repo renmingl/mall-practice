@@ -27,11 +27,7 @@ onMounted(load)
 
 <template>
   <div class="refund-list">
-    <van-nav-bar title="我的退款单" fixed placeholder>
-      <template #left>
-        <van-icon name="arrow-left" @click="router.back()" />
-      </template>
-    </van-nav-bar>
+    <h2 class="page-title">我的退款单</h2>
 
     <van-empty v-if="!loading && !list.length" description="暂无退款记录" />
 
@@ -68,7 +64,7 @@ onMounted(load)
 
 <style scoped>
 .refund-list {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
   padding: 12px;
 }

@@ -89,35 +89,50 @@ onMounted(load)
 
 <template>
   <div class="cart-page">
-    <van-nav-bar title="购物车" fixed placeholder>
-      <template #left>
-        <van-icon name="arrow-left" @click="router.back()" />
-      </template>
-      <template #right>
-        <span class="nav-link" @click="onRemove()">删除勾选</span>
-      </template>
-    </van-nav-bar>
+    <div class="page-head">
+      <h2>购物车</h2>
+      <span class="head-count">共 {{ validRows.length }} 件商品</span>
+    </div>
 
     <van-empty v-if="!loading && !rows.length" description="购物车还是空的" class="empty">
       <van-button round type="primary" to="/product/list">去逛逛</van-button>
     </van-empty>
 
     <template v-else>
-      <van-checkbox-group :model-value="validRows.filter((r) => r.checked).map((r) => r.skuId)">
-        <van-swipe-cell v-for="row in rows" :key="row.skuId">
-          <div class="cart-row" :class="{ invalid: row.invalid }">
+      <div class="cart-table">
+        <!-- 表头 -->
+        <div class="cart-head">
+          <div class="col-check">
+            <van-checkbox :model-value="allChecked" @click="toggleAll">全选</van-checkbox>
+          </div>
+          <div class="col-goods">商品</div>
+          <div class="col-price">单价</div>
+          <div class="col-qty">数量</div>
+          <div class="col-subtotal">小计</div>
+          <div class="col-op">操作</div>
+        </div>
+
+        <!-- 行 -->
+        <div v-for="row in rows" :key="row.skuId" class="cart-row" :class="{ invalid: row.invalid }">
+          <div class="col-check">
             <van-checkbox
               :model-value="row.checked"
               :disabled="!!row.invalid"
               @click="toggleChecked(row)"
             />
+          </div>
+          <div class="col-goods">
             <img class="thumb" :src="row.pic" @click="router.push(`/product/${row.spuId}`)" />
-            <div class="info" @click="router.push(`/product/${row.spuId}`)">
+            <div class="goods-info" @click="router.push(`/product/${row.spuId}`)">
               <p class="name">{{ row.spuName }}</p>
               <p v-if="row.spec" class="spec">{{ row.spec }}</p>
               <p v-if="row.invalid" class="invalid-tip">商品已失效，请删除</p>
-              <p class="price">¥{{ (row.price || 0).toFixed(2) }}</p>
             </div>
+          </div>
+          <div class="col-price">
+            <span class="price">¥{{ (row.price || 0).toFixed(2) }}</span>
+          </div>
+          <div class="col-qty">
             <van-stepper
               v-if="!row.invalid"
               :model-value="row.quantity"
@@ -125,22 +140,32 @@ onMounted(load)
               min="1"
               @change="(v: number) => { row.quantity = v; onQuantityChange(row) }"
             />
+            <span v-else class="invalid-mark">-</span>
           </div>
-          <template #right>
-            <van-button square type="danger" text="删除" class="swipe-btn" @click="onRemove(row)" />
-          </template>
-        </van-swipe-cell>
-      </van-checkbox-group>
-
-      <div class="cart-footer">
-        <van-checkbox :model-value="allChecked" @click="toggleAll">全选</van-checkbox>
-        <div class="total">
-          <span>合计：</span>
-          <span class="amount">¥{{ totalAmount.toFixed(2) }}</span>
+          <div class="col-subtotal">
+            <span class="subtotal">¥{{ (row.subtotal || 0).toFixed(2) }}</span>
+          </div>
+          <div class="col-op">
+            <van-button size="small" plain type="danger" @click="onRemove(row)">删除</van-button>
+          </div>
         </div>
-        <van-button type="danger" round class="settle-btn" @click="goCheckout">
-          去结算({{ checkedRows.length }})
-        </van-button>
+      </div>
+
+      <!-- 底部结算条 -->
+      <div class="cart-footer">
+        <div class="footer-inner">
+          <van-checkbox :model-value="allChecked" @click="toggleAll">全选</van-checkbox>
+          <div class="footer-op">
+            <van-button size="small" plain type="danger" class="remove-btn" @click="onRemove()">删除勾选</van-button>
+          </div>
+          <div class="total">
+            <span class="total-label">合计：</span>
+            <span class="amount">¥{{ totalAmount.toFixed(2) }}</span>
+          </div>
+          <van-button type="danger" round class="settle-btn" @click="goCheckout">
+            去结算({{ checkedRows.length }})
+          </van-button>
+        </div>
       </div>
     </template>
   </div>
@@ -148,87 +173,145 @@ onMounted(load)
 
 <style scoped>
 .cart-page {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
-  padding-bottom: 70px;
+  padding: 16px;
+  padding-bottom: 96px;
+}
+.page-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.page-head h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #323233;
+  border-left: 4px solid #ee0a24;
+  padding-left: 10px;
+}
+.head-count {
+  color: #969799;
+  font-size: 13px;
 }
 .empty {
-  margin-top: 80px;
+  margin-top: 60px;
+}
+.cart-table {
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.cart-head,
+.cart-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 140px 150px 140px 100px;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+}
+.cart-head {
+  background: #fafafa;
+  color: #969799;
+  font-size: 13px;
+  border-bottom: 1px solid #f2f3f5;
 }
 .cart-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  background: #fff;
   border-bottom: 1px solid #f2f3f5;
+}
+.cart-row:last-child {
+  border-bottom: none;
 }
 .cart-row.invalid {
   opacity: 0.6;
 }
-.thumb {
-  width: 72px;
-  height: 72px;
-  border-radius: 6px;
-  background: #f2f3f5;
-  object-fit: cover;
+.col-check {
+  display: flex;
+  align-items: center;
 }
-.info {
-  flex: 1;
+.col-goods {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   min-width: 0;
 }
+.thumb {
+  width: 84px;
+  height: 84px;
+  border-radius: 8px;
+  background: #f2f3f5;
+  object-fit: cover;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.goods-info {
+  min-width: 0;
+  cursor: pointer;
+}
 .name {
-  font-size: 14px;
+  margin: 0;
+  font-size: 15px;
   color: #323233;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.name:hover {
+  color: #ee0a24;
+}
 .spec {
+  margin: 6px 0 0;
   font-size: 12px;
   color: #969799;
-  margin-top: 2px;
 }
 .invalid-tip {
+  margin: 6px 0 0;
   font-size: 12px;
   color: #ee0a24;
-  margin-top: 2px;
 }
-.price {
+.col-price .price {
+  font-size: 15px;
+  color: #323233;
+}
+.col-qty .invalid-mark {
+  color: #969799;
+}
+.col-subtotal .subtotal {
   font-size: 15px;
   color: #ee0a24;
   font-weight: 600;
-  margin-top: 4px;
-}
-.swipe-btn {
-  height: 100%;
 }
 .cart-footer {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  max-width: 640px;
+  background: #fff;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+  z-index: 50;
+}
+.footer-inner {
+  width: min(92vw, 1680px);
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  background: #fff;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  gap: 16px;
+  padding: 12px 16px;
+}
+.footer-op {
+  flex: 1;
 }
 .total {
-  flex: 1;
-  text-align: right;
-  font-size: 13px;
-  color: #969799;
+  font-size: 14px;
+  color: #646566;
 }
 .amount {
-  font-size: 18px;
+  font-size: 22px;
   color: #ee0a24;
-  font-weight: 600;
+  font-weight: 700;
 }
 .settle-btn {
-  min-width: 110px;
+  min-width: 140px;
 }
 </style>

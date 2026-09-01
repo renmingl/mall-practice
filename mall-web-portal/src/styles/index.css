@@ -17,3 +17,41 @@ code {
   border-radius: 4px;
   font-size: 13px;
 }
+
+/* ---------- PC 商城化全局样式 ---------- */
+
+/* 页面标题（替代原移动端 van-nav-bar 顶栏；模板中以 <h2 class="page-title"> 使用） */
+.page-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #323233;
+  border-left: 4px solid #ee0a24;
+  padding-left: 10px;
+  margin: 4px 0 14px;
+}
+.page-title .page-title-link {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 400;
+}
+.page-title .page-title-link .nav-link {
+  color: #1989fa;
+  cursor: pointer;
+}
+
+/* PC 宽屏下 van-card 列表（收藏/足迹/搜索等）放大商品图 */
+.van-card__thumb {
+  width: 96px !important;
+  height: 96px !important;
+}
+.van-card__thumb img {
+  object-fit: cover;
+}
+
+/* PC 宽屏下 cell-group 菜单卡片限宽（个人中心等页面用 .cell-group-wide 包裹） */
+.cell-group-wide .van-cell-group--inset {
+  max-width: 600px;
+}

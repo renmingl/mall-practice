@@ -128,7 +128,7 @@ async function onSubmit() {
 
 <style scoped>
 .forgot-page {
-  max-width: 480px;
+  max-width: 560px;
   margin: 0 auto;
   padding-top: 10vh;
 }

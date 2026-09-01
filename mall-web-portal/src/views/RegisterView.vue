@@ -119,7 +119,7 @@ onMounted(loadCaptcha)
 
 <style scoped>
 .register-page {
-  max-width: 480px;
+  max-width: 560px;
   margin: 0 auto;
   padding-top: 8vh;
 }

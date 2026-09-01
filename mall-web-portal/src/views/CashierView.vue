@@ -54,11 +54,7 @@ onMounted(ensurePayment)
 
 <template>
   <div class="cashier">
-    <van-nav-bar title="收银台" fixed placeholder>
-      <template #left>
-        <van-icon name="arrow-left" @click="router.back()" />
-      </template>
-    </van-nav-bar>
+    <h2 class="page-title">收银台</h2>
 
     <van-loading v-if="loading" class="page-loading" vertical>加载中...</van-loading>
 
@@ -102,7 +98,7 @@ onMounted(ensurePayment)
 
 <style scoped>
 .cashier {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
   padding-bottom: 80px;
 }
@@ -136,7 +132,7 @@ onMounted(ensurePayment)
   bottom: 0;
   left: 0;
   right: 0;
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
   padding: 12px 16px;
   background: #fff;

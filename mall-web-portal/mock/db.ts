@@ -59,6 +59,25 @@ export const brands = [
   { id: 9, name: '美的', logo: '' }
 ]
 
+// ---------- 首页 Banner（运营位） ----------
+
+export interface MockBanner {
+  id: number
+  title: string
+  subtitle: string
+  color1: string
+  color2: string
+  emoji: string
+  link: string
+}
+
+export const banners: MockBanner[] = [
+  { id: 1, title: '新品首发', subtitle: 'iPhone 15 Pro · 钛金属旗舰 · A17 Pro 芯片', color1: '#1e3a8a', color2: '#3b82f6', emoji: '📱', link: '/product/list?categoryId=11' },
+  { id: 2, title: '限时秒杀', subtitle: '整点开抢 · 全场低至 5 折', color1: '#9f1239', color2: '#f43f5e', emoji: '⚡', link: '/seckill' },
+  { id: 3, title: '电脑办公节', subtitle: '戴尔 XPS 13 · 轻薄本狂欢', color1: '#134e4a', color2: '#14b8a6', emoji: '💻', link: '/product/list?categoryId=21' },
+  { id: 4, title: '家电焕新', subtitle: 'Mini LED 电视 · 领券立减', color1: '#713f12', color2: '#f59e0b', emoji: '📺', link: '/product/list?categoryId=31' }
+]
+
 // ---------- 商品（SPU / SKU） ----------
 
 export interface MockSku {

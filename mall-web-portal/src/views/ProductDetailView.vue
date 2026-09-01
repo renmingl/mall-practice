@@ -30,6 +30,12 @@ const liked = ref(false)
 const likeCount = ref(0)
 const likeLoading = ref(false)
 
+/** 主图切换（默认主图，缩略图可切换） */
+const pics = computed(() =>
+  detail.value ? [detail.value.spu.mainPic, ...(detail.value.spu.pics ? detail.value.spu.pics.split(',') : [])].filter(Boolean) as string[] : []
+)
+const activePic = ref('')
+
 /** 默认选中第一个启用 SKU */
 const price = computed(() => activeSku.value?.price ?? detail.value?.skuList?.[0]?.price ?? 0)
 const stock = computed(() => activeSku.value?.stock ?? detail.value?.skuList?.[0]?.stock ?? 0)
@@ -43,6 +49,7 @@ async function load() {
   try {
     detail.value = await getProductDetail(spuId)
     activeSku.value = detail.value.skuList[0] || null
+    activePic.value = detail.value.spu.mainPic || ''
   } finally {
     loading.value = false
   }
@@ -159,138 +166,235 @@ onMounted(() => {
 
 <template>
   <div class="product-detail">
-    <van-nav-bar title="商品详情" fixed placeholder @click-left="router.back()">
-      <template #left>
-        <van-icon name="arrow-left" />
-      </template>
-    </van-nav-bar>
-
-    <div v-if="detail" class="detail-body">
-      <!-- 主图轮播 -->
-      <van-swipe :autoplay="0" class="swipe">
-        <van-swipe-item v-for="(pic, i) in [detail.spu.mainPic, ...(detail.spu.pics ? detail.spu.pics.split(',') : [])].filter(Boolean)" :key="i">
-          <img :src="pic" class="swipe-img" />
-        </van-swipe-item>
-      </van-swipe>
-
-      <!-- 价格/标题 -->
-      <div class="price-bar">
-        <span class="price">¥{{ price.toFixed(2) }}</span>
-        <span class="sales">已售 {{ detail.spu.sales ?? 0 }} 件</span>
-      </div>
-      <div class="title-bar">
-        <h2 class="name">{{ detail.spu.name }}</h2>
-        <p v-if="detail.spu.subtitle" class="subtitle">{{ detail.spu.subtitle }}</p>
-        <p class="meta">
-          {{ detail.categoryName }} · {{ detail.brandName }} · {{ detail.spu.unit }}
-        </p>
-      </div>
-
-      <!-- SKU 选择 -->
-      <van-cell-group inset title="选择规格">
-        <div class="sku-list">
-          <van-tag
-            v-for="sku in detail.skuList"
-            :key="sku.id"
-            :type="activeSku?.id === sku.id ? 'primary' : 'default'"
-            size="large"
-            class="sku-tag"
-            @click="selectSku(sku)"
-          >
-            {{ sku.spec || sku.skuCode }}
-            <span v-if="sku.stock <= 0" class="out-of-stock">（缺货）</span>
-          </van-tag>
+    <div v-if="detail" class="detail-wrap">
+      <!-- 左：主图 + 缩略图 -->
+      <div class="gallery">
+        <div class="main-img">
+          <img :src="activePic || detail.spu.mainPic" :alt="detail.spu.name" />
         </div>
-        <p class="stock-tip">库存：{{ stock }} 件</p>
-      </van-cell-group>
+        <div v-if="pics.length > 1" class="thumbs">
+          <div
+            v-for="(pic, i) in pics"
+            :key="i"
+            class="thumb"
+            :class="{ active: pic === activePic }"
+            @click="activePic = pic"
+          >
+            <img :src="pic" :alt="detail.spu.name + (i + 1)" />
+          </div>
+        </div>
+      </div>
 
-      <!-- 详情 -->
-      <van-cell-group inset title="商品详情">
-        <div class="detail-text">{{ detail.spu.detail || '暂无详情' }}</div>
-      </van-cell-group>
+      <!-- 右：信息 + 操作 -->
+      <div class="info">
+        <h1 class="name">{{ detail.spu.name }}</h1>
+        <p v-if="detail.spu.subtitle" class="subtitle">{{ detail.spu.subtitle }}</p>
+
+        <div class="price-box">
+          <span class="price">¥{{ price.toFixed(2) }}</span>
+          <span class="sales">已售 {{ detail.spu.sales ?? 0 }} 件 · 库存 {{ stock }} 件</span>
+        </div>
+
+        <p class="meta">{{ detail.categoryName }} · {{ detail.brandName }} · {{ detail.spu.unit }}</p>
+
+        <!-- SKU 选择 -->
+        <div class="sku-box">
+          <p class="sku-title">选择规格</p>
+          <div class="sku-list">
+            <van-tag
+              v-for="sku in detail.skuList"
+              :key="sku.id"
+              :type="activeSku?.id === sku.id ? 'primary' : 'default'"
+              size="large"
+              class="sku-tag"
+              @click="selectSku(sku)"
+            >
+              {{ sku.spec || sku.skuCode }}
+              <span v-if="sku.stock <= 0" class="out-of-stock">（缺货）</span>
+            </van-tag>
+          </div>
+        </div>
+
+        <!-- 操作区 -->
+        <div class="actions">
+          <van-button type="warning" size="large" round class="act-btn" @click="onAddToCart">加入购物车</van-button>
+          <van-button type="danger" size="large" round class="act-btn" @click="onBuyNow">立即购买</van-button>
+          <van-button
+            size="large"
+            round
+            class="act-btn"
+            :icon="favorited ? 'star' : 'star-o'"
+            :loading="favoriteLoading"
+            @click="toggleFavorite"
+          >
+            {{ favorited ? '已收藏' : '收藏' }}
+          </van-button>
+          <van-button
+            size="large"
+            round
+            class="act-btn"
+            :icon="liked ? 'good-job' : 'good-job-o'"
+            :loading="likeLoading"
+            @click="toggleLike"
+          >
+            点赞 {{ likeCount }}
+          </van-button>
+        </div>
+      </div>
     </div>
 
-    <!-- 底部操作栏 -->
-    <van-action-bar safe-area-inset-bottom>
-      <van-action-bar-icon :icon="favorited ? 'star' : 'star-o'" :color="favorited ? '#ee0a24' : '#646566'" :loading="favoriteLoading" text="收藏" @click="toggleFavorite" />
-      <van-action-bar-icon :icon="liked ? 'good-job' : 'good-job-o'" :color="liked ? '#ee0a24' : '#646566'" :loading="likeLoading" :text="`点赞 ${likeCount}`" @click="toggleLike" />
-      <van-action-bar-button type="warning" text="加入购物车" @click="onAddToCart" />
-      <van-action-bar-button type="danger" text="立即购买" @click="onBuyNow" />
-    </van-action-bar>
+    <!-- 商品详情 -->
+    <div v-if="detail" class="detail-box">
+      <h3 class="detail-title">商品详情</h3>
+      <div class="detail-text">{{ detail.spu.detail || '暂无详情' }}</div>
+    </div>
+
+    <van-loading v-if="!detail" class="loading" size="32" vertical>加载中...</van-loading>
   </div>
 </template>
 
 <style scoped>
 .product-detail {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
-  padding-bottom: 60px;
+  padding: 16px;
 }
-.swipe {
-  height: 300px;
-  background: #f7f8fa;
+.detail-wrap {
+  display: flex;
+  gap: 32px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
 }
-.swipe-img {
+.gallery {
+  width: min(400px, 40vw);
+  flex-shrink: 0;
+}
+.main-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f2f3f5;
+}
+.main-img img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-.price-bar {
+.thumbs {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 12px 16px 0;
+  gap: 10px;
+  margin-top: 12px;
 }
-.price {
-  color: #ee0a24;
-  font-size: 22px;
-  font-weight: 600;
+.thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  background: #f2f3f5;
 }
-.sales {
-  color: #969799;
-  font-size: 12px;
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
-.title-bar {
-  padding: 8px 16px 16px;
+.thumb.active {
+  border-color: #ee0a24;
+}
+.info {
+  flex: 1;
+  min-width: 0;
 }
 .name {
   margin: 0;
-  font-size: 17px;
+  font-size: 24px;
   line-height: 1.4;
+  color: #323233;
 }
 .subtitle {
-  margin: 6px 0 0;
+  margin: 10px 0 0;
+  color: #969799;
+  font-size: 14px;
+}
+.price-box {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  background: #fff1f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-top: 18px;
+}
+.price {
+  color: #ee0a24;
+  font-size: 30px;
+  font-weight: 700;
+}
+.sales {
   color: #969799;
   font-size: 13px;
 }
 .meta {
-  margin: 6px 0 0;
+  margin: 14px 0 0;
   color: #969799;
-  font-size: 12px;
+  font-size: 13px;
+}
+.sku-box {
+  margin-top: 18px;
+}
+.sku-title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #646566;
+  font-weight: 600;
 }
 .sku-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 4px 16px 0;
+  gap: 10px;
 }
 .sku-tag {
-  padding: 6px 10px;
+  padding: 8px 14px;
+  cursor: pointer;
 }
 .out-of-stock {
   opacity: 0.6;
 }
-.stock-tip {
-  margin: 8px 16px 12px;
-  color: #969799;
-  font-size: 12px;
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+.act-btn {
+  min-width: 132px;
+}
+.detail-box {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-top: 16px;
+}
+.detail-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: #323233;
+  border-left: 4px solid #ee0a24;
+  padding-left: 10px;
 }
 .detail-text {
-  padding: 8px 16px;
-  color: #333;
+  color: #555;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.8;
   white-space: pre-wrap;
   word-break: break-all;
+}
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 80px 0;
 }
 </style>

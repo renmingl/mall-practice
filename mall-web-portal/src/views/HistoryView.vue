@@ -39,11 +39,7 @@ onMounted(load)
 
 <template>
   <div class="history-page">
-    <van-nav-bar title="浏览足迹" fixed placeholder>
-      <template #left>
-        <span class="nav-link" @click="router.push('/')">首页</span>
-      </template>
-    </van-nav-bar>
+    <h2 class="page-title">浏览足迹</h2>
 
     <van-loading v-if="loading" class="page-loading" />
     <van-empty v-else-if="!list.length" description="暂无浏览记录，去逛逛吧" />
@@ -57,7 +53,7 @@ onMounted(load)
 
 <style scoped>
 .history-page {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
 }
 .nav-link {

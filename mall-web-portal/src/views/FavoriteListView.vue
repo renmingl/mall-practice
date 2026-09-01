@@ -46,11 +46,7 @@ onMounted(load)
 
 <template>
   <div class="favorite-list">
-    <van-nav-bar title="我的收藏" fixed placeholder @click-left="router.back()">
-      <template #left>
-        <van-icon name="arrow-left" />
-      </template>
-    </van-nav-bar>
+    <h2 class="page-title">我的收藏</h2>
 
     <van-list v-model:loading="loading" :finished="finished" finished-text="没有更多了" @load="load">
       <van-swipe-cell v-for="row in list" :key="row.favoriteId">
@@ -68,7 +64,7 @@ onMounted(load)
 
 <style scoped>
 .favorite-list {
-  max-width: 640px;
+  width: min(92vw, 1680px);
   margin: 0 auto;
 }
 .delete-btn {
