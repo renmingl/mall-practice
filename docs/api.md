@@ -322,7 +322,29 @@
 | POST | /api/admin/search/reindex | 全量重建商品索引（DB → ES bulk，返回索引文档数） |
 | GET | /api/admin/search/index | 索引信息（存在性 + 文档数，ES 不可用时带 error 字段） |
 
-## 12. mall-common 骨架验证（/api/common）
+## 12. mall-ai AI 助手（阶段 9）
+
+> OpenAI 兼容协议多模型问答（DeepSeek / 通义千问 / OpenAI / 智谱 4 家预设，仅 base-url 与 model 不同）；API Key 由使用者自配（docker/.env 环境变量注入），未配置的模型 available=false 自动禁用。路由 `/api/ai/**` 走网关可选鉴权：带 token 校验并注入 X-User-Id / X-User-Type（登录态能力分层：游客仅通用问答与知识、买家可查本人数据、管理员可查管理侧数据），无 token 游客放行；scene 参数区分双入口（admin 后台助手仅 ADMIN / portal 客服浮窗游客+会员）；登录态消息自动落库 ai_chat_message（scene+userId 隔离，上下文自动取最近 6 轮）。
+
+### 12.1 模型配置（/api/ai/config）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/ai/config | 模型清单：[{provider,label,model,available}]，前端据此渲染选择器（available=false 置灰禁用） |
+
+### 12.2 对话（/api/ai/chat）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | /api/ai/chat | 非流式问答：body `{"provider":"deepseek","scene":"portal","sessionId":"可选","message":"你好"}`；provider 缺省自动选第一个可用模型；请求未配置的模型返回明确错误；登录态自动落库 user + assistant 两条 |
+
+> 响应：{provider, providerLabel, model, sessionId, reply}——sessionId 缺省时服务端生成（UUID 短码），后续追问带上即可续接同一会话；前端流式场景可本地生成同格式 sessionId（如 admin 页新会话）。
+
+> 内部也提供流式版：`POST /api/ai/chat/stream` 返回 `text/event-stream`——`data:{"delta":"..."}` 增量推送 / `data:{"done":true}` 结束 / `data:{"error":"..."}` 异常（非 SSE 的 Result JSON 响应由调用方兼容）；请求体与 /chat 相同。
+>
+> 历史会话：`GET /api/ai/sessions?scene=admin|portal` 返回会话列表 [{sessionId, preview, total, createTime}]（游客空数组）；`GET /api/ai/messages?scene=admin|portal&sessionId=...` 返回正序消息 [{role, content}]（归属校验：仅本人会话，admin 场景仅管理员）。
+
+## 13. mall-common 骨架验证（/api/common）
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -330,7 +352,7 @@
 | GET | /api/common/error | 异常链路：验证 GlobalExceptionHandler 统一兜底 |
 | GET | /api/common/trace | traceId 链路：返回当前请求 traceId（MDC） |
 
-## 13. 内部契约接口（/internal/**，仅服务间 Feign 调用，不对外暴露）
+## 14. 内部契约接口（/internal/**，仅服务间 Feign 调用，不对外暴露）
 
 > 统一无 `/api` 前缀，经网关放行；跨服务调用契约定义在 mall-api 模块的 FeignClient。
 
@@ -350,6 +372,7 @@
 | GET | /internal/member/stats/new-members | 今日新增注册会员数（看板） |
 | GET | /internal/member/stats/checkin-month | 指定会员当月签到天数（看板） |
 | GET | /internal/member/stats/summary | 会员运营总览（看板聚合） |
+| GET | /internal/member/account-overview | 我的账户概览（资料 + 地址数 + 积分等级，AI 客服取数） |
 
 **product**（/internal/product）：
 
@@ -379,6 +402,7 @@
 | POST | /internal/order/mark-refunded | 整单退款成功回写：1/2/3→5（幂等） |
 | GET | /internal/order/stats/today | 今日订单概览（订单数/已支付销售额/秒杀订单数） |
 | GET | /internal/order/stats/trend | 近 7 天订单趋势 |
+| GET | /internal/order/recent | 最近订单摘要（memberId + limit；AI 客服取数） |
 
 **payment**（/internal/payment）：POST /internal/payment/create（创建支付单，幂等：同订单+同支付方式复用流水）· GET /internal/payment/by-order（按订单号查支付流水，结果页轮询用）。
 
@@ -387,6 +411,7 @@
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | /internal/coupon/available | 我的可用券（未使用 + 未过期 + 门槛达标） |
+| GET | /internal/coupon/mine | 我的券（未使用 + 未过期，不分门槛；AI 客服取数） |
 | POST | /internal/coupon/lock | 锁券：0→1（下单占用，写 order_id；幂等） |
 | POST | /internal/coupon/unlock | 退券：1→0（取消/超时关单回退；过期置 3） |
 | POST | /internal/coupon/use | 核销：1→2（支付成功确认核销） |

@@ -1,6 +1,6 @@
 # mall-practice
 
-电商商城实战项目，覆盖微服务、分布式事务、消息队列、缓存、搜索、任务调度、链路追踪等电商核心技术。单仓库多模块工程：16 个 Maven 后端模块 + 2 个 npm 前端模块（mall-web-admin 管理后台 / mall-web-portal 前台商城），支持本地一键启动与 Docker 独立镜像部署。
+电商商城实战项目，覆盖微服务、分布式事务、消息队列、缓存、搜索、任务调度、链路追踪等电商核心技术。单仓库多模块工程：17 个 Maven 后端模块 + 2 个 npm 前端模块（mall-web-admin 管理后台 / mall-web-portal 前台商城），支持本地一键启动与 Docker 独立镜像部署。
 
 > **跨平台支持**：Windows / macOS / Linux 三平台均可运行（作者验证环境：Windows 10 + Docker Desktop）。本文安装方式、命令、端口配置三平台通用；唯一差异是 Docker 安装（见「环境准备详解」——Windows 用 Docker Desktop，支持 WSL2 / Hyper-V 两种后端任选其一）。文中标注「Windows 特有」的段落仅 Windows 用户需要关注，其余平台直接跳过即可。
 
@@ -12,6 +12,7 @@
 - **微服务治理**：Nacos 注册/配置中心 · Spring Cloud Gateway 网关 · Sentinel 限流熔断 · Apache Dubbo 3 双通道 RPC · OpenFeign · Seata AT 分布式事务 · XXL-Job 任务调度 · SkyWalking 链路追踪
 - **数据与中间件**：MySQL 8.3 · Redis 7.2（缓存/分布式锁/购物车/秒杀预扣）· Elasticsearch 8 全文搜索 · RocketMQ 5（延迟消息/削峰/事务消息）· Canal binlog 增量同步 · Caffeine 多级缓存 · Redisson 分布式锁 · 阿里云 OSS 对象存储
 - **安全与开发**：Spring Security + JWT · MyBatis-Plus · springdoc-openapi 接口文档 · JUnit 5 + Mockito
+- **AI 能力**：OpenAI 兼容多模型接入（mall-ai 服务，内置 DeepSeek / 通义千问 / OpenAI / 智谱 4 家预设），API Key 由使用者自配、未配置的模型自动禁用
 - **前端**：Vue 3.5 + TypeScript + Vite 6 + Pinia（管理后台 Element Plus / 前台商城 Vant）
 
 ## 目录
@@ -20,6 +21,7 @@
 - [快速开始](#快速开始)：第 1～5 步 + 启动前端 + 验证
 - [不启动后端浏览页面（Mock 演示模式）](#不启动后端浏览页面mock-演示模式)：无需任何后端服务，前端内置演示数据，全部页面可浏览可点击，附实拍截图
 - [本地打包运行（Docker 镜像化部署）](#本地打包运行docker-镜像化部署)：中间件与应用拆分两个 yaml，一键脚本 / 手动命令 / 免构建拉取三种方式
+- [AI 助手（可选）](#ai-助手可选)：OpenAI 兼容多模型问答，API Key 使用者自配、未配置的模型自动禁用
 - [专题文档（docs/）](#专题文档docs)：全部解释性内容按专题拆分到 docs/，README 只保留可直接照抄的操作步骤
 
 ## 快速开始
@@ -53,7 +55,7 @@ docker compose -f docker/docker-compose.yml up -d mysql
 # 导入 xxl_job 库（XXL-Job 调度中心表，3.1.0 版；-p 后为你的 MySQL root 密码）
 Get-Content .\sql\xxl_job.sql -Raw -Encoding UTF8 | docker exec -i mall-mysql mysql -uroot -p<密码>
 
-# 导入 mall 业务库（第三版：29 张表，详见 docs/business.md「业务表设计总览」；-p 后为你的 MySQL root 密码）
+# 导入 mall 业务库（第三版：30 张表，详见 docs/business.md「业务表设计总览」；-p 后为你的 MySQL root 密码）
 Get-Content .\sql\mall.sql -Raw -Encoding UTF8 | docker exec -i mall-mysql mysql -uroot -p<密码>
 ```
 
@@ -106,8 +108,8 @@ docker compose --profile rocketmq --profile seata --profile search --profile tas
 
 #### IDEA 一键启动全部（推荐）
 
-1. **为 12 个服务各建一个 Spring Boot 运行配置**：`Edit Configurations → + → Spring Boot`，按下方对照表逐个选择各模块的启动类，名称填模块名（mall-auth、mall-admin……），共 12 个
-2. **创建复合配置（Compound）**：`Edit Configurations → + → Compound`，命名如 `mall-all`，把上一步的 12 个配置全部勾选加入
+1. **为 13 个服务各建一个 Spring Boot 运行配置**：`Edit Configurations → + → Spring Boot`，按下方对照表逐个选择各模块的启动类，名称填模块名（mall-auth、mall-admin……），共 13 个
+2. **创建复合配置（Compound）**：`Edit Configurations → + → Compound`，命名如 `mall-all`，把上一步的 13 个配置全部勾选加入
 3. **一键启动**：之后每次点 `mall-all` 即并行拉起全部服务；单独调试某服务时，直接运行它自己的配置即可
 
 | 模块 | 启动类（main class） | 模块作用 |
@@ -124,6 +126,7 @@ docker compose --profile rocketmq --profile seata --profile search --profile tas
 | mall-coupon | MallCouponApplication | 优惠券发放与核销 |
 | mall-seckill | MallSeckillApplication | 秒杀活动（Redis 预扣 + 限流 + MQ 削峰） |
 | mall-search | MallSearchApplication | 商品搜索（ES 索引与检索） |
+| mall-ai | MallAiApplication | AI 助手：OpenAI 兼容多模型问答（Key 由使用者自配） |
 
 #### 命令行方式（备选）
 
@@ -135,11 +138,11 @@ mvn install -DskipTests
 mvn -pl mall-product spring-boot:run
 
 # 全部启动：每个服务开一个窗口（PowerShell 脚本）
-$services = 'mall-gateway','mall-auth','mall-admin','mall-portal','mall-member','mall-product','mall-cart','mall-order','mall-payment','mall-coupon','mall-seckill','mall-search'
+$services = 'mall-gateway','mall-auth','mall-admin','mall-portal','mall-member','mall-product','mall-cart','mall-order','mall-payment','mall-coupon','mall-seckill','mall-search','mall-ai'
 foreach ($s in $services) { Start-Process mvn -ArgumentList "-pl",$s,"spring-boot:run" }
 ```
 
-> 资源提醒：12 个 JVM 约 4～6GB 内存，机器吃紧可分组勾选；服务间调用发生在运行时，无下游依赖的模块（product/cart/auth/member/search）可单独启动，有下游调用的模块（portal/admin/order 等）单独启动时对应功能暂不可用。
+> 资源提醒：13 个 JVM 约 4～6GB 内存，机器吃紧可分组勾选；服务间调用发生在运行时，无下游依赖的模块（product/cart/auth/member/search）可单独启动，有下游调用的模块（portal/admin/order 等）单独启动时对应功能暂不可用。
 
 ### 启动前端（可选，骨架验证）
 
@@ -209,14 +212,14 @@ $env:VITE_MOCK='true'; npm run dev
 
 ## 本地打包运行（Docker 镜像化部署）
 
-> 与上方「第 3～4 步 + 启动前端」的源码直跑方式不同，本方式把 **12 个后端微服务 + 2 个前端**打成 Docker 镜像运行，宿主机只需安装 Docker（JDK/Maven/Node 均在构建容器内完成，无需本机安装）。详细端口规划、扩缩容与注意事项见 [docs/deployment.md](docs/deployment.md)。
+> 与上方「第 3～4 步 + 启动前端」的源码直跑方式不同，本方式把 **13 个后端微服务 + 2 个前端**打成 Docker 镜像运行，宿主机只需安装 Docker（JDK/Maven/Node 均在构建容器内完成，无需本机安装）。详细端口规划、扩缩容与注意事项见 [docs/deployment.md](docs/deployment.md)。
 
 编排拆分为**两个 yaml**（均在 `docker/` 目录，同目录运行项目名相同、共享同一默认网络）：
 
 | 文件 | 内容 | 镜像来源 |
 |---|---|---|
 | `docker-compose.yml` | 中间件：Nacos/MySQL/Redis/RocketMQ/Seata/ES/Canal/XXL-Job/SkyWalking 共 12 容器，profile 按需启动 | Docker Hub 直接拉取 |
-| `docker-compose.apps.yml` | 应用：12 微服务 + 2 前端共 14 个（含环境变量锚点，自动覆盖各模块连接地址） | 源码构建（`docker compose build`） |
+| `docker-compose.apps.yml` | 应用：13 微服务 + 2 前端共 15 个（含环境变量锚点，自动覆盖各模块连接地址） | 源码构建（`docker compose build`） |
 
 **方式一：一键脚本**（适合部署机/全新机器：本机无源码，脚本从 GitHub 拉取 master 代码 → 构建 → 启动一条命令）：
 
@@ -254,6 +257,25 @@ docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile rocket
 
 **停止全部**：`docker compose -f docker-compose.yml -f docker-compose.apps.yml down`；只想停应用：`docker compose -f docker-compose.apps.yml stop`。
 
+## AI 助手（可选）
+
+mall-ai 是第 13 个微服务（端口 9200，网关路由 `/api/ai/**`），提供 **OpenAI 兼容协议的多模型问答 + 登录态能力分层 + 会话历史**——内置 DeepSeek / 通义千问 / OpenAI / 智谱 4 家模型预设。**API Key 由你自己申请与配置**（各模型官网注册即得，按量计费）：Key 不会出现在代码与镜像里，作者也不代持任何 Key，配了哪家哪家可用，未配置的模型自动禁用。
+
+**双入口**：管理后台「AI 助手」页（`/ai` 菜单，仅管理员可见，可查今日订单 / 趋势 / 库存预警 / 销量排行 / 会员运营）；前台商城右下角 AI 客服浮窗（游客通用问答，登录会员可查本人券 / 积分 / 最近订单 / 购物车）。问答采用 SSE 流式打字机输出；**对话历史自动入库** `ai_chat_message`（仅登录态，按 scene+userId 隔离，会话上下文自动取最近 6 轮），游客无状态不落库。意图路由：命中「订单/库存/销量…」等关键词才经 Feign 取实时数据（单服务故障降级不阻断），未命中按项目知识库（docs/ 专题文档自动分块，双字滑窗检索 Top-3）回答。Mock 演示模式（`VITE_MOCK=true`）内置演示回复，无需后端即可体验双端页面。
+
+**配置 Key**（Docker 部署）：在 `docker/.env` 中填写以下 4 项（模板见 `docker/.env.example`，可只配一家），然后执行 `docker compose -f docker-compose.apps.yml up -d mall-ai` 重启生效：
+
+```
+DEEPSEEK_API_KEY=sk-xxx     # DeepSeek（默认模型 deepseek-chat）
+QWEN_API_KEY=sk-xxx         # 通义千问（qwen-plus）
+OPENAI_API_KEY=sk-xxx       # OpenAI（gpt-4o-mini）
+ZHIPU_API_KEY=sk-xxx        # 智谱 GLM（glm-4-flash）
+```
+
+**配置 Key**（源码直跑）：给 mall-ai 的 IDEA 运行配置加同名环境变量即可，或启动前在终端执行 `$env:DEEPSEEK_API_KEY='sk-xxx'`（PowerShell；bash 用 `export DEEPSEEK_API_KEY=sk-xxx`）。
+
+**验证**：`GET http://localhost:9200/api/ai/config` 返回 4 家模型与可用状态（未配 Key 的 `available=false`）；对话 / 流式 / 历史会话接口均可在 http://localhost:9200/doc.html 调试。
+
 ## 专题文档（docs/）
 
 README 只保留操作步骤；解释性内容已按专题拆分到 `docs/` 目录，按需查阅：
@@ -266,6 +288,6 @@ README 只保留操作步骤；解释性内容已按专题拆分到 `docs/` 目�
 | [docs/architecture.md](docs/architecture.md) | 5 张架构图 + 技术栈 / 依赖引入状态 |
 | [docs/engineering.md](docs/engineering.md) | 工程结构 / 服务间通信 / 分布式事务策略 / 日志方案 / 链路追踪接入 |
 | [docs/api.md](docs/api.md) | 接口文档：全部 HTTP 接口按模块 + 功能点分类总览（参数详见运行期 doc.html） |
-| [docs/business.md](docs/business.md) | 业务篇：29 张表设计 / 两平台菜单 / 技术场景清单 |
+| [docs/business.md](docs/business.md) | 业务篇：30 张表设计 / 两平台菜单 / 技术场景清单 |
 | [docs/faq.md](docs/faq.md) | 常见问题（FAQ）+ 搭建踩坑记录 |
 

@@ -5,6 +5,7 @@ import {
   couponTemplates, myCoupons, seckillSessions, seckillProducts, sessionPhase,
   profile, pointLogs, addresses, favorites, browseHistory, checkinState,
   myComments, likedSpuIds, likeCountMap, banners,
+  aiSessions, aiMessagesBySession,
   clone, paginate, fmtDateTime, nextOrderId
 } from './db'
 
@@ -99,6 +100,49 @@ function createPaymentForOrder(o: (typeof orders)[number], payType: number) {
   }
   payments.push(payment)
   return payment
+}
+
+// ---------- AI 客服 Mock ----------
+
+/** 模型清单：与真实 /api/ai/config 同构；mock 仅 DeepSeek 可用，其余置灰展示能力边界 */
+function aiMockModels() {
+  return [
+    { provider: 'deepseek', label: 'DeepSeek', model: 'deepseek-chat', available: true },
+    { provider: 'qwen', label: '通义千问', model: 'qwen-plus', available: false },
+    { provider: 'openai', label: 'OpenAI', model: 'gpt-4o-mini', available: false },
+    { provider: 'zhipu', label: '智谱 GLM', model: 'glm-4-flash', available: false }
+  ]
+}
+
+/** 关键词命中演示回复（口径与 portal mock 数据一致；真实模式由后端能力分层约束游客/会员边界） */
+function aiMockReply(question: string): string {
+  const q = question || ''
+  let body =
+    '你好，我是 mall-practice AI 客服，可以解答项目、商品、下单等问题；登录后还能查询优惠券、订单、积分等本人数据。'
+  if (/优惠券|可用券|我的券/.test(q)) {
+    body = '你当前有 2 张可用优惠券：\n1. 新人满 99 减 10（有效期至 2026-12-31）\n2. 618 大促满 500 减 80（有效期至 2026-12-31）\n结算时会自动匹配最优优惠。'
+  } else if (/订单|买过|待发货|待收货/.test(q)) {
+    body = '你最近一笔订单：订单号 20260828100220002，漫步者 NeoBuds Pro 2 ×1 共 ¥399，当前状态为「待收货」。'
+  } else if (/积分|等级|账户|地址/.test(q)) {
+    body = '你的账户概览：会员等级 Lv3（白银会员），当前积分 2,580 分，默认收货地址 1 条。'
+  } else if (/购物车/.test(q)) {
+    body = '你的购物车当前有 2 件已勾选商品，合计 ¥7,798，随时可以结算。'
+  } else if (/部署|运行|启动/.test(q)) {
+    body = '项目支持 Docker Compose 一键部署：在 docker/ 目录执行 docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile rocketmq --profile seata --profile task up -d 即可拉起全部中间件与应用。详见 docs/deployment.md。'
+  } else if (/你好|hi|hello|你是谁/.test(q)) {
+    body = '你好，我是 mall-practice 电商微服务学习项目的 AI 客服，可以帮你解答问题或查询个人数据。'
+  }
+  return body + '（Mock 演示回复：启动真实后端并配置模型 API Key 后，由大模型实时生成）'
+}
+
+/** 回复文本拆为 SSE 增量帧（每 4 字一帧；与 mall-ai 帧协议一致） */
+function aiSseFrames(text: string): string[] {
+  const frames: string[] = []
+  for (let i = 0; i < text.length; i += 4) {
+    frames.push(JSON.stringify({ delta: text.slice(i, i + 4) }))
+  }
+  frames.push(JSON.stringify({ done: true }))
+  return frames
 }
 
 // ---------- Handler 注册表 ----------
@@ -529,6 +573,36 @@ export const handlers: MockHandler[] = [
     }
   },
   { method: 'GET', url: '/comment/mine', handler: (ctx) => paginate(myComments, Number(ctx.query.page || 1), Number(ctx.query.size || 10)) },
+
+  // ---- AI 客服（mall-ai /api/ai，scene=portal）----
+  { method: 'GET', url: '/ai/config', handler: () => aiMockModels() },
+  { method: 'GET', url: '/ai/sessions', handler: () => clone(aiSessions) },
+  {
+    method: 'GET', url: '/ai/messages', handler: (ctx) =>
+      clone(aiMessagesBySession[String(ctx.query.sessionId)] || [])
+  },
+  {
+    method: 'POST', url: '/ai/chat/stream', handler: (ctx) => {
+      const body = (ctx.body || {}) as { message?: string; sessionId?: string }
+      const reply = aiMockReply(body.message)
+      // 追加进会话库：重开面板续接可见新会话（与后端 ai_chat_message 落库语义对齐）
+      const sid = body.sessionId || 'mock-ai-' + Date.now()
+      const arr = (aiMessagesBySession[sid] ||= [])
+      const q = (body.message || '').trim()
+      arr.push({ role: 'user', content: q }, { role: 'assistant', content: reply })
+      const preview = q.length > 24 ? q.slice(0, 24) + '…' : q
+      const found = aiSessions.find((s) => s.sessionId === sid)
+      if (found) {
+        found.preview = preview
+        found.total = arr.length
+        found.createTime = fmtDateTime(new Date())
+      } else {
+        aiSessions.unshift({ sessionId: sid, preview, total: arr.length, createTime: fmtDateTime(new Date()) })
+      }
+      return { _sse: aiSseFrames(reply) }
+    }
+  },
+  { method: 'POST', url: '/ai/chat', handler: () => null }, // 非流式兜底（页面主链路走 /chat/stream）
 
   // ---- 网关链路 ----
   { method: 'GET', url: '/common/ping', handler: () => 'pong' },

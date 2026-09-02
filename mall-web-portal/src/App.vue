@@ -2,10 +2,11 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import SiteHeader from '@/components/SiteHeader.vue'
+import CustomerService from '@/components/CustomerService.vue'
 
 const route = useRoute()
 
-// 登录/注册/忘记密码页为独立表单页（PC 电商惯例不带站点头部/页脚）
+// 登录/注册/忘记密码页为独立表单页（PC 电商惯例不带站点头部/页脚，亦不挂客服浮窗）
 const showChrome = computed(
   () => !['login', 'register', 'forgot-password'].includes(String(route.name))
 )
@@ -20,6 +21,8 @@ const showChrome = computed(
     <footer v-if="showChrome" class="site-footer">
       <p>mall-practice 电商微服务学习项目 · Spring Cloud Alibaba + Vue 3 + Vant</p>
     </footer>
+    <!-- AI 客服浮窗（阶段 9）：游客普通问答；登录会员可查本人订单/优惠券等（scene=portal） -->
+    <CustomerService v-if="showChrome" />
   </div>
 </template>
 

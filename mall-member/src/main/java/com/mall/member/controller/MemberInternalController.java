@@ -7,6 +7,8 @@ import com.mall.api.member.UpdatePasswordByPhoneDTO;
 import com.mall.api.member.VerifyPasswordDTO;
 import com.mall.common.result.Result;
 import com.mall.member.service.MemberAccountService;
+import com.mall.member.service.MemberAddressService;
+import com.mall.member.service.MemberProfileService;
 import com.mall.member.service.MemberStatsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,8 @@ public class MemberInternalController {
 
     private final MemberAccountService memberAccountService;
     private final MemberStatsService memberStatsService;
+    private final MemberProfileService memberProfileService;
+    private final MemberAddressService memberAddressService;
 
     /** 注册：创建买家账号 */
     @PostMapping("/register")
@@ -100,6 +104,16 @@ public class MemberInternalController {
         row.put("dau", memberStatsService.dau(null));
         row.put("checkinToday", memberStatsService.checkinToday());
         row.put("newMembersToday", memberStatsService.newMembersToday());
+        return Result.success(row);
+    }
+
+    // ==================== AI 问答数据供给（阶段 9 16.3：mall-ai 按需拉取拼上下文） ====================
+
+    /** 会员账户概览：基础资料 + 积分/等级 + 地址数（买家问"我的积分/等级/地址"等） */
+    @GetMapping("/account-overview")
+    public Result<Map<String, Object>> accountOverview(@RequestParam("memberId") Long memberId) {
+        Map<String, Object> row = memberProfileService.profile(memberId);
+        row.put("addressCount", memberAddressService.list(memberId).size());
         return Result.success(row);
     }
 }

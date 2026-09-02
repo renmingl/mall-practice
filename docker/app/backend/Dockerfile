@@ -37,6 +37,7 @@ COPY mall-payment/pom.xml mall-payment/pom.xml
 COPY mall-coupon/pom.xml mall-coupon/pom.xml
 COPY mall-seckill/pom.xml mall-seckill/pom.xml
 COPY mall-search/pom.xml mall-search/pom.xml
+COPY mall-ai/pom.xml mall-ai/pom.xml
 
 # 2) 预下载依赖（部分插件依赖在 package 阶段才解析，失败不中断）
 RUN mvn -B -pl ${MODULE} -am dependency:go-offline || true

@@ -33,6 +33,12 @@ public class CouponInternalController {
         return Result.success(couponService.getAvailableCoupons(memberId, totalAmount));
     }
 
+    /** 我的全部未使用券（阶段 9 16.3 AI 问答供给：不分门槛列出未使用 + 未过期券） */
+    @GetMapping("/mine")
+    public Result<List<CouponAvailableDTO>> mineCoupons(@RequestParam("memberId") Long memberId) {
+        return Result.success(couponService.mineCoupons(memberId));
+    }
+
     /** 锁券：0→1（下单占用，写 order_id 便于取消/退款反查；幂等） */
     @PostMapping("/lock")
     public Result<Void> lockCoupon(@RequestParam("couponUserId") Long couponUserId,

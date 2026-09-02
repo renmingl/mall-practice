@@ -44,13 +44,15 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     /** 后台管理路径前缀：仅 ADMIN 角色可访问（防 MEMBER 越权） */
     private static final String ADMIN_PATH_PREFIX = "/api/admin";
 
-    /** 白名单：登录注册/验证码/刷新/退出/找回密码/后台登录/骨架验证/接口文档/健康检查/前台商品浏览（免登录） */
+    /** 白名单：登录注册/验证码/刷新/退出/找回密码/后台登录/骨架验证/接口文档/健康检查/前台商品浏览/AI 助手问答（免登录） */
     private static final String[] WHITE_LIST = {
             "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout",
             "/api/auth/forgot-password", "/api/auth/captcha", "/api/auth/admin/login", "/api/common/",
             // 前台商品浏览无需登录（分类/品牌/列表/详情/热销/商品评价；收藏不在白名单）
             "/api/product/categories", "/api/product/brands", "/api/product/list",
             "/api/product/detail/", "/api/product/hot", "/api/comment/spu/",
+            // AI 助手（阶段 9 16.x）：游客普通问答/模型清单无需登录；登录态数据查询后续另行鉴权
+            "/api/ai/",
             "/doc.html", "/webjars/", "/v3/api-docs", "/actuator/"
     };
 
@@ -64,13 +66,24 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getPath().value();
+        String token = extractToken(exchange.getRequest());
         if (isWhiteListed(path)) {
+            // AI 助手（阶段 9 16.3）：游客免登录可直接问答；带 token 的请求也解析登录态并透传用户头
+            // （后端据此做能力分层与历史隔离），token 失效则 401（前端静默续期后重放）
+            if (path.startsWith("/api/ai/") && token != null) {
+                return authenticate(exchange, chain, path);
+            }
             return chain.filter(exchange);
         }
-        String token = extractToken(exchange.getRequest());
         if (token == null) {
             return unauthorized(exchange.getResponse(), "未登录或登录已过期");
         }
+        return authenticate(exchange, chain, path);
+    }
+
+    /** 校验 token（auth 查 Redis 黑名单）→ 通过后透传用户上下文头，失败 401 */
+    private Mono<Void> authenticate(ServerWebExchange exchange, GatewayFilterChain chain, String path) {
+        String token = extractToken(exchange.getRequest());
         return webClientConfig.webClientBuilder().build().post()
                 .uri(AUTH_CHECK_URL)
                 .contentType(MediaType.APPLICATION_JSON)

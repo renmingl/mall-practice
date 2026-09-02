@@ -55,4 +55,8 @@ public interface MemberFeignClient {
     /** 会员运营总览（看板聚合：在线/日活/今日签到/今日新增） */
     @GetMapping("/stats/summary")
     Result<Map<String, Object>> statsSummary();
+
+    /** 会员账户概览（阶段 9 16.3 AI 问答供给：基础资料 + 积分/等级 + 地址数） */
+    @GetMapping("/account-overview")
+    Result<Map<String, Object>> accountOverview(@RequestParam("memberId") Long memberId);
 }

@@ -2,7 +2,7 @@
 
 ## 工程结构（模块架构）
 
-16 个后端模块按「平台 / 层次」分四类，另有 2 个 npm 前端模块（mall-web-admin / mall-web-portal，独立部署；工程结构树见「系统架构」图 4，编译期 / 运行时依赖关系见「系统架构」图 5）：
+17 个后端模块按「平台 / 层次」分四类，另有 2 个 npm 前端模块（mall-web-admin / mall-web-portal，独立部署；工程结构树见「系统架构」图 4，编译期 / 运行时依赖关系见「系统架构」图 5）：
 
 **① 前端平台（聚合层，无表不落库）**
 
@@ -30,18 +30,19 @@
 | mall-coupon | 优惠券发放与核销 |
 | mall-seckill | 秒杀活动（Redis 预扣 + 限流 + 削峰） |
 | mall-search | 商品搜索（ES 索引与检索） |
+| mall-ai | AI 助手：OpenAI 兼容多模型问答（SSE 流式）+ 登录态能力分层（游客/买家/管理员）+ 会话历史（ai_chat_message，仅登录态）+ 知识检索 / Feign 数据供给（Key 由使用者自配，未配置自动禁用） |
 
 **④ 基础与契约模块**
 
 | 模块 | 职责 |
 |---|---|
 | mall-common | 统一返回结构（Result<T>）、全局异常、工具类、雪花 ID、MDC traceId 工具、Logback 日志配置、Redis 配置、后台管理接口权限过滤器（AdminApiAuthFilter：/api/admin/* 校验 X-User-Type=ADMIN，与网关双层防护）；MQ 封装（MqSender / TxMessageService / DeadLetterService）、xxl-job 执行器封装（XxlJobAutoConfiguration）、Redisson 分布式锁封装（RedissonAutoConfiguration）均已落地（条件装配：配置/依赖满足才生效）；文件存储抽象随阶段 3 落地在 mall-product（UploadStorage 接口 + 本地/OSS 双通道，接入 OBS 等仅需新增实现类，见「技术栈 → 阿里云 OSS」） |
-| mall-mbg | MyBatis-Plus Generator 代码生成，产出实体类与 Mapper（mall 库 29 表 entity/mapper/xml 已生成） |
-| mall-api / mall-dubbo-api | 服务间调用接口契约，Feign 与 Dubbo 各自独立定义（mall-api 已内置 openfeign 依赖，10 个服务依赖；mall-dubbo-api 秒杀契约 SeckillDubboService，order 调用 / seckill 实现） |
+| mall-mbg | MyBatis-Plus Generator 代码生成，产出实体类与 Mapper（mall 库 30 表 entity/mapper/xml 已生成） |
+| mall-api / mall-dubbo-api | 服务间调用接口契约，Feign 与 Dubbo 各自独立定义（mall-api 已内置 openfeign 依赖，11 个服务依赖；mall-dubbo-api 秒杀契约 SeckillDubboService，order 调用 / seckill 实现；mall-search 无 Feign 契约不依赖——ES 检索直连；mall-ai 依赖 mall-api 做 AI 数据问答取数） |
 
 > **「平台 ≠ 服务」辨析**：mall-admin / mall-portal 是平台聚合层（只管页面数据组装与流程编排，无表）；mall-product / mall-order 等是业务数据服务（拥有表，被两个平台共同调用）——mall-product 不是「管理后台」，mall-admin 也不是「数据服务」。表名前缀按数据语义域命名（product_* 商品域归 mall-product、admin_* 后台管理域归 mall-auth 持有）：admin_* 是后台账号权限数据，由认证权限服务管而非聚合层建表；买家账号复用 member，故不存在 portal_ 前缀表（平台数据边界见业务篇「业务表设计总览」）。
 
-> 阶段 1 说明：12 个服务模块已含启动类 + application.yml（可直接启动并注册 Nacos）+ 骨架验证接口（/api/common/ping|error|trace）；mall-common 已实现统一返回/全局异常/雪花 ID/traceId 工具/日志配置；mall-mbg 已生成 29 表实体与 Mapper（7 个有表服务已接入）；全部业务代码（Service/Controller）按业务篇「电商技术场景清单」逐场景实现，依赖引入时机见「技术栈 → 依赖引入状态」小节。
+> 阶段 1 说明：12 个服务模块已含启动类 + application.yml（可直接启动并注册 Nacos，阶段 9 新增 mall-ai 后共 13 个服务）+ 骨架验证接口（/api/common/ping|error|trace）；mall-common 已实现统一返回/全局异常/雪花 ID/traceId 工具/日志配置；mall-mbg 已生成 29 表实体与 Mapper（7 个有表服务已接入），阶段 9 AI 模块再生成 ai_chat_message（mall 库累计 30 表、8 个有表服务）；全部业务代码（Service/Controller）按业务篇「电商技术场景清单」逐场景实现，依赖引入时机见「技术栈 → 依赖引入状态」小节。
 >
 > 阶段 2 说明：双账号体系已闭环——买家注册 / 登录（图形 + 模拟短信验证码、BCrypt、JWT 双令牌 + Redis 黑名单 + refresh 轮换）、找回密码（前台找回密码页 + 重置密码页均已交付）、收货地址 / 个人资料 / 积分查询；后台 admin 登录 + RBAC 五表（用户 / 角色 / 菜单）+ 按钮级 @PreAuthorize；网关集中鉴权（透传 X-User-Id / X-User-Type / X-User-Perms，/api/admin/** 校验 userType=ADMIN 角色分流，非 ADMIN 返回 403）+ 业务服务侧 AdminApiAuthFilter 二次兜底；管理动作即时生效：禁用 / 删除 / 重置密码 / 角色权限变更均触发用户全部令牌失效（踢下线）。后台管理接口由 mall-auth 直接提供（admin_* 数据归属 auth），商品/库存/订单等管理接口由前端经网关直连各业务服务，mall-admin 聚合层负责数据看板（DashboardService 经 Feign 聚合），不中转业务管理请求。
 >

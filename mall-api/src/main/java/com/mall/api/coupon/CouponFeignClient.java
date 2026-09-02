@@ -25,6 +25,10 @@ public interface CouponFeignClient {
     Result<List<CouponAvailableDTO>> getAvailableCoupons(@RequestParam("memberId") Long memberId,
                                                          @RequestParam("totalAmount") BigDecimal totalAmount);
 
+    /** 我的全部未使用券（阶段 9 16.3 AI 问答供给：不分门槛列出未使用 + 未过期券） */
+    @GetMapping("/mine")
+    Result<List<CouponAvailableDTO>> mineCoupons(@RequestParam("memberId") Long memberId);
+
     /** 锁券：0→1（下单占用；写入 order_id 便于取消/退款反查；幂等：同订单已锁定则直接成功） */
     @PostMapping("/lock")
     Result<Void> lockCoupon(@RequestParam("couponUserId") Long couponUserId,

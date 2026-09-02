@@ -74,6 +74,10 @@ export const menuTree: MockMenu[] = [
       { id: 66, parentId: 65, name: '秒杀场次', type: 2, path: '/seckill/session', perms: 'seckill:session:list', icon: '', sort: 1, status: 1, children: [] },
       { id: 71, parentId: 65, name: '秒杀商品', type: 2, path: '/seckill/product', perms: 'seckill:product:list', icon: '', sort: 2, status: 1, children: [] }
     ]
+  },
+  {
+    id: 72, parentId: 0, name: 'AI 助手', type: 2, path: '/ai', perms: 'ai:chat', icon: 'chat', sort: 7, status: 1,
+    children: []
   }
 ]
 
@@ -95,7 +99,7 @@ export const roles = [
 ]
 
 export const roleMenus: Record<number, number[]> = {
-  1: [1, 2, 3, 4, 20, 21, 22, 23, 24, 25, 26, 51, 52, 53, 58, 59, 61, 64, 65, 66, 71],
+  1: [1, 2, 3, 4, 20, 21, 22, 23, 24, 25, 26, 51, 52, 53, 58, 59, 61, 64, 65, 66, 71, 72],
   2: [20, 21, 22, 23, 24, 51, 52, 53, 64, 65, 66, 71],
   3: [58, 59, 61, 51, 64],
   4: [20, 24, 25, 26]
@@ -444,6 +448,38 @@ export const dashboard = {
     { id: 111, skuCode: 'SKU20260827801', spuId: 8, stock: 8, lowStock: 8 },
     { id: 116, skuCode: 'SKU20260827131', spuId: 13, stock: 6, lowStock: 8 },
     { id: 117, skuCode: 'SKU20260827141', spuId: 14, stock: 4, lowStock: 6 }
+  ]
+}
+
+// ---------- AI 助手（演示会话；发送新消息后由 /ai/chat/stream mock 自动追加，刷新重置） ----------
+
+export interface MockAiSession {
+  sessionId: string
+  preview: string
+  total: number
+  createTime: string
+}
+
+export interface MockAiMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export const aiSessions: MockAiSession[] = [
+  { sessionId: 'mock-ai-session-0001', preview: '今天订单量和销售额怎么样？', total: 4, createTime: fmtDateTime(hoursAgo(3)) },
+  { sessionId: 'mock-ai-session-0002', preview: '有哪些商品库存不足需要补货？', total: 2, createTime: fmtDateTime(daysAgo(1)) }
+]
+
+export const aiMessagesBySession: Record<string, MockAiMessage[]> = {
+  'mock-ai-session-0001': [
+    { role: 'user', content: '今天订单量和销售额怎么样？' },
+    { role: 'assistant', content: '截至当前，今日共产生订单 128 单，销售额 ¥45,680.50，其中秒杀订单 23 单。整体交易状态健康，未发现异常波动。' },
+    { role: 'user', content: '和昨天比呢？' },
+    { role: 'assistant', content: '近 7 天订单量整体呈上升趋势，昨日订单 118 单、销售额 ¥40,910.00；今日较昨日订单量提升约 8.5%，销售额提升约 11.7%。' }
+  ],
+  'mock-ai-session-0002': [
+    { role: 'user', content: '有哪些商品库存不足需要补货？' },
+    { role: 'assistant', content: '当前有 3 个 SKU 触发库存预警：\n1. SKU20260827801 库存 8 件（预警线 8）\n2. SKU20260827131 库存 6 件（预警线 8）\n3. SKU20260827141 库存 4 件（预警线 6）\n建议尽快发起采购补货。' }
   ]
 }
 

@@ -59,6 +59,11 @@ spring:
               uri: lb://mall-search
               predicates:
                 - Path=/api/search/**,/api/admin/search/**
+            # 阶段 9 路由：AI 助手（/api/ai/** 无需登录；模型 Key 由使用者自配，未配置的模型自动禁用）
+            - id: mall-ai
+              uri: lb://mall-ai
+              predicates:
+                - Path=/api/ai/**
             # 阶段 2 路由：认证中心（登录/注册/JWT 鉴权）
             # 注意：Gateway 5.x 配置前缀由 spring.cloud.gateway 调整为 spring.cloud.gateway.server.webflux
             # 阶段 8 13.4 网关限流：登录防暴力破解（令牌桶 10/s、突发 20，按用户/IP 限流）

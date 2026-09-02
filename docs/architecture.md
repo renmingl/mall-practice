@@ -13,6 +13,7 @@ graph LR
     GW --> AUTH["mall-auth 认证中心 :8100"]
     GW --> PORTAL["mall-portal 前台商城 :8300"]
     GW --> ADMIN["mall-admin 后台管理 :8200"]
+    GW --> AI["mall-ai AI 助手 :9200"]
     PORTAL --> PRODUCT["mall-product 商品服务 :8500"]
     PORTAL --> CART["mall-cart 购物车 :8600"]
     PORTAL --> ORDER["mall-order 订单服务 :8700"]
@@ -27,9 +28,11 @@ graph LR
     subgraph 外部依赖
         OSS["阿里云 OSS 对象存储（可选）"]
         ODPS["阿里云 ODPS 离线数仓（学习阶段不接入）"]
+        MODEL["模型供应商 API（DeepSeek / 通义 / OpenAI / 智谱，Key 由使用者自配）"]
         PAYGW["第三方支付平台（支付宝/微信）"]
     end
     PRODUCT -.->|图片上传/下载| OSS
+    AI -.->|OpenAI 兼容协议| MODEL
     ORDER -.->|订单数据同步| ODPS
     COUPON -.->|营销数据统计分析| ODPS
     PAY -.->|下单支付/回调通知| PAYGW
@@ -68,7 +71,7 @@ graph LR
 - `mall-portal` / `mall-admin` 为聚合层，服务间通过 Nacos 注册发现
 - 支付链路：`mall-payment` 对接第三方支付平台（支付宝/微信），完成下单支付与回调通知
 - OSS / ODPS 为阿里云公网服务，虚线表示外部依赖（均按需开通，详见"可选安装"）
-- 中间件连线为代表性画法：MySQL 连 auth/member/product/order/payment/coupon/seckill 共 7 个业务服务；Redis 供全部业务服务使用（缓存/锁/购物车）；Nacos 注册发现与 SkyWalking 链路追踪覆盖全部 12 服务；admin 对下游的管理调用见下图 2
+- 中间件连线为代表性画法：MySQL 连 auth/member/product/order/payment/coupon/seckill/ai 共 8 个业务服务；Redis 供全部业务服务使用（缓存/锁/购物车）；Nacos 注册发现与 SkyWalking 链路追踪覆盖全部 13 服务；admin 对下游的管理调用见下图 2
 
 ### 2. 应用调用链路图
 
@@ -88,6 +91,7 @@ graph LR
     PRODUCT["mall-product :8500"]
     CART["mall-cart :8600"]
     SEARCH["mall-search :9100"]
+    AI["mall-ai :9200"]
     ORDER["mall-order :8700"]
     PAY["mall-payment :8800"]
     COUPON["mall-coupon :8900"]
@@ -99,6 +103,7 @@ graph LR
     GW -->|"HTTP WebClient（JWT 校验）"| AUTH
     GW -->|"HTTP 转发"| PORTAL
     GW -->|"HTTP 转发"| ADMIN
+    GW -->|"HTTP 转发（/api/ai/** 无需登录）"| AI
 
     PORTAL -->|"HTTP Feign（商品查询）"| PRODUCT
     PORTAL -->|"HTTP Feign（购物车）"| CART
@@ -185,9 +190,9 @@ sequenceDiagram
 
 ```mermaid
 graph TB
-    ROOT["mall-practice（后端 16 模块 + 前端 2 模块）"]
+    ROOT["mall-practice（后端 17 模块 + 前端 2 模块）"]
     ROOT --> BASE["基础 / 契约模块（4 个）"]
-    ROOT --> SVC["服务模块（12 个）"]
+    ROOT --> SVC["服务模块（13 个）"]
     ROOT --> FRONT["前端模块（2 个，npm 独立部署）"]
     ROOT --> CFG["工程配置（非 Maven 模块）"]
 
@@ -196,8 +201,8 @@ graph TB
     BASE --> API["mall-api<br/>Feign 接口契约"]
     BASE --> DUBBOAPI["mall-dubbo-api<br/>Dubbo 接口契约"]
 
-    SVC --> EDGE["平台与网关（3 个，无表不落库）"]
-    SVC --> BIZ["业务服务（9 个，数据归属）"]
+    SVC --> EDGE["平台 / 网关（3 个，无表不落库）"]
+    SVC --> BIZ["业务服务（10 个，数据归属）"]
 
     EDGE --> GW["mall-gateway 网关 :8080"]
     EDGE --> ADMIN["mall-admin 管理后台平台 :8200"]
@@ -212,8 +217,9 @@ graph TB
     BIZ --> COUPON["mall-coupon 营销服务 :8900"]
     BIZ --> SECKILL["mall-seckill 秒杀服务 :9000"]
     BIZ --> SEARCH["mall-search 搜索服务 :9100"]
+    BIZ --> AI["mall-ai AI 助手 :9200<br/>（ai_chat_message 历史）"]
 
-    CFG --> SQLDIR["sql/<br/>mall.sql（29 张表）<br/>xxl_job.sql（调度中心库）"]
+    CFG --> SQLDIR["sql/<br/>mall.sql（30 张表）<br/>xxl_job.sql（调度中心库）"]
     CFG --> DOCKERDIR["docker/<br/>docker-compose.yml + .env<br/>canal/ · rocketmq/ 配置<br/>9 个中间件（12 容器）一键编排"]
 
     FRONT --> WEBADMIN["mall-web-admin 管理后台<br/>Vue 3 + Element Plus :5173"]
@@ -228,7 +234,7 @@ graph TB
     class ROOT root
     class COMMON,MBG,API,DUBBOAPI base
     class EDGE,GW,ADMIN,PORTAL edge
-    class BIZ,AUTH,MEMBER,PRODUCT,CART,ORDER,PAY,COUPON,SECKILL,SEARCH biz
+    class BIZ,AUTH,MEMBER,PRODUCT,CART,ORDER,PAY,COUPON,SECKILL,SEARCH,AI biz
     class SQLDIR,DOCKERDIR cfg
     class FRONT,WEBADMIN,WEBPORTAL front
 ```
@@ -259,6 +265,7 @@ graph TB
         PAY["mall-payment"]
         SECKILL["mall-seckill"]
         SEARCH["mall-search"]
+        AI["mall-ai"]
     end
 
     MBG["mall-mbg<br/>实体 / Mapper 生成"]
@@ -276,6 +283,7 @@ graph TB
     PAY --> COMMON
     SECKILL --> COMMON
     SEARCH --> COMMON
+    AI --> COMMON
 
     PORTAL -->|调用契约 已引入| API
     ADMIN -->|调用契约 已引入| API
@@ -287,6 +295,7 @@ graph TB
     COUPON -->|实现契约 已引入| API
     SECKILL -->|实现契约 已引入| API
     PAY -->|实现契约 已引入| API
+    AI -->|调用契约 已引入| API
     ORDER -->|调用 已引入| DUBBOAPI
     SECKILL -->|实现 已引入| DUBBOAPI
     AUTH -->|实体已引入| MBG
@@ -296,19 +305,20 @@ graph TB
     ORDER -->|实体已引入| MBG
     PAY -->|实体已引入| MBG
     SECKILL -->|实体已引入| MBG
+    AI -->|实体已引入| MBG
 
     classDef base fill:#059669,stroke:none,color:#fff
     classDef svc fill:#0ea5e9,stroke:none,color:#fff
     class COMMON,MBG,API,DUBBOAPI base
-    class GW,AUTH,ADMIN,PORTAL,MEMBER,PRODUCT,CART,COUPON,ORDER,PAY,SECKILL,SEARCH svc
+    class GW,AUTH,ADMIN,PORTAL,MEMBER,PRODUCT,CART,COUPON,ORDER,PAY,SECKILL,SEARCH,AI svc
 ```
 
 - **实线**：当前编译期依赖（代码里可直接 import 对方的类）；无虚线（规划中的依赖均已落地）
 - mall-gateway 零依赖（图中无任何边，属正常）：网关是 WebFlux 反应式栈，mall-common 含 web 注解不兼容
-- mall-cart（纯 Redis）/ mall-search（ES 索引）/ 聚合层（portal/admin）不连 MySQL，因此无 mall-mbg 依赖
+- mall-cart（纯 Redis）/ mall-search（ES 索引）不连 MySQL，因此无 mall-mbg 依赖；聚合层（gateway/admin/portal）无表亦不依赖
 - Feign / Dubbo 契约双方共享契约模块：调用方拿接口、提供方实现接口（各自依赖一份，并非服务间直接依赖）
-- mall-mbg：7 个有表服务（auth/member/product/order/payment/coupon/seckill）+ mall-common（optional 条件装配）编译期依赖实体/Mapper
-- mall-api：auth/admin/portal/member/product/cart/coupon/order/payment/seckill 共 10 个服务依赖（Feign 契约）；mall-search 无契约不依赖（ES 无 Feign 接口）；mall-api 已内置 openfeign 依赖（服务依赖 mall-api 即获得 Feign 能力）
+- mall-mbg：8 个有表服务（auth/member/product/order/payment/coupon/seckill/ai）+ mall-common（optional 条件装配）编译期依赖实体/Mapper
+- mall-api：auth/admin/portal/member/product/cart/coupon/order/payment/seckill/ai 共 11 个服务依赖（Feign 契约；ai 为 AI 数据问答取数）；mall-search 无契约不依赖（ES 无 Feign 接口）；mall-api 已内置 openfeign 依赖（服务依赖 mall-api 即获得 Feign 能力）
 - mall-dubbo-api：order（调用方）/ seckill（提供方）依赖（秒杀核验契约 SeckillDubboService）；product/coupon/payment 未切 Dubbo（维持 Feign）
 
 ## 技术栈
@@ -365,18 +375,18 @@ graph TB
 | mall-web-admin | 管理后台 | Vue 3.5 + TypeScript + Vite 6 + Pinia + Element Plus | Nginx 独立镜像（开发端口 5173） |
 | mall-web-portal | 前台商城 | Vue 3.5 + TypeScript + Vite 6 + Pinia + Vant | Nginx 独立镜像（开发端口 5174） |
 
-> 前端两个端为仓库内 npm 模块（mall-web-admin / mall-web-portal），与后端 16 个 Maven 模块独立构建、独立部署；阶段 1 已建立脚手架（路由 / 请求封装 / 状态管理），阶段 2 已交付登录 / 注册 / 个人中心 / 地址管理 / 后台登录 / 用户角色菜单管理页，开发期经 Vite 代理 `/api` → 网关 8080 与后端联调，其余页面随各阶段同步交付。
+> 前端两个端为仓库内 npm 模块（mall-web-admin / mall-web-portal），与后端 17 个 Maven 模块独立构建、独立部署；阶段 1 已建立脚手架（路由 / 请求封装 / 状态管理），阶段 2 已交付登录 / 注册 / 个人中心 / 地址管理 / 后台登录 / 用户角色菜单管理页，开发期经 Vite 代理 `/api` → 网关 8080 与后端联调，其余页面随各阶段同步交付。
 
 ### 依赖引入状态（骨架 vs 业务开发阶段）
 
-> 判断依据：当前 16 个模块 pom 的实际依赖。**✅ 已引入**的依赖写代码可直接使用；**⏳ 待引入**的依赖在对应场景开发时添加（版本见上方技术栈表，个别适配待验证的已标注）。
+> 判断依据：当前 17 个模块 pom 的实际依赖。**✅ 已引入**的依赖写代码可直接使用；**⏳ 待引入**的依赖在对应场景开发时添加（版本见上方技术栈表，个别适配待验证的已标注）。
 
 | 依赖 | 当前状态 | 归属模块 | 引入时机 |
 |---|---|---|---|
-| Spring Web / Actuator / Nacos 注册发现 / Lombok | ✅ 已引入 | 全部 12 服务 | - |
+| Spring Web / Actuator / Nacos 注册发现 / Lombok | ✅ 已引入 | 全部 13 服务 | - |
 | Logback + SLF4J（日志） | ✅ 已内置（spring-boot-starter-logging 随 starter 自动引入，无需显式声明） | 全部服务 | 阶段 1 落地日志配置（滚动文件 + MDC traceId） |
 | OpenFeign + LoadBalancer | ✅ 已引入 | mall-portal / mall-admin 各自直接引入；mall-auth 经 mall-api（内置 openfeign）调 mall-member 内部契约 | - |
-| MyBatis-Plus + MySQL 驱动 | ✅ 已引入 | auth / member / product / order / payment / coupon / seckill 共 7 个 | - |
+| MyBatis-Plus + MySQL 驱动 | ✅ 已引入 | auth / member / product / order / payment / coupon / seckill / ai 共 8 个 | - |
 | Redis（spring-data-redis） | ✅ 已引入 | mall-common（其余服务经 common 传递获得；gateway 不依赖 common 故无） | - |
 | Redisson 分布式锁 | ✅ 已引入（org.redisson:redisson 3.52.0，纯核心库手动装配，避开 starter 的 Boot 4 适配风险） | mall-common（RedissonAutoConfiguration 条件装配，各服务直接注入 RedissonClient） | 领券分布式锁已落地（4.2） |
 | RocketMQ 客户端 | ✅ 已引入（spring-cloud-starter-stream-rocketmq，SCA 2025.1.0.0 官方适配 Boot 4） | order/product/coupon/member（消费，含各自 DLQ 死信消费）+ order/seckill（MqSender 直接发送）/ payment（TxMessageService 事务消息发送）+ mall-common（MqSender/TxMessageService/DeadLetterService 封装） | 阶段 5/6/7 落地（8.x MQ 场景全部闭环） |
@@ -386,7 +396,7 @@ graph TB
 | XXL-Job core | ✅ 已引入（xxl-job-core 3.1.0，与调度中心镜像 xuxueli/xxl-job-admin:3.1.0 及 sql/xxl_job.sql 表结构版本一致） | mall-common（XxlJobAutoConfiguration 封装，配置 xxl.job.admin.addresses 即注册执行器）+ order/payment/coupon/product/seckill 共 5 个执行器（7 个任务，@Scheduled 本地双通道兜底） | 阶段 2.5/4/5/6/7/14.3 定时任务已接入 |
 | Elasticsearch 客户端 | ✅ 已引入（elasticsearch-java 8.17.4，Boot 4 兼容） | mall-search | 阶段 8 落地（搜索 / 联想 / 高亮） |
 | 阿里云 OSS SDK（aliyun-sdk-oss 3.18.2） | ✅ 已引入 | mall-product | 阶段 3 落地（图片上传双通道） |
-| 接口文档 springdoc-openapi | ✅ 已引入（3.1.0，Boot 4 适配；Knife4j 未适配已弃用） | 全部 12 服务（Servlet 用 webmvc-ui，网关用 webflux-ui），doc.html 已验证 | 阶段 1 落地 |
+| 接口文档 springdoc-openapi | ✅ 已引入（3.1.0，Boot 4 适配；Knife4j 未适配已弃用） | 全部 13 服务（Servlet 用 webmvc-ui，网关用 webflux-ui），doc.html 已验证 | 阶段 1 落地 |
 | Apache Dubbo 3 | ✅ 已引入 | mall-dubbo-api（秒杀契约 SeckillDubboService）+ mall-seckill / mall-order；双通道 mall.seckill.remote=feign / dubbo | 阶段 7 落地（演进第三阶段） |
 | SkyWalking | 无需 pom 依赖（javaagent 无侵入） | 全部服务 | 链路追踪演示 |
 

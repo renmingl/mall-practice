@@ -3,7 +3,7 @@
 # （GHCR = GitHub Container Registry，GitHub 自带镜像仓库，无需额外 Token，
 #  仓库需开启 Actions 权限：Settings -> Actions -> General -> Workflow permissions）
 #
-# 产物：ghcr.io/<GitHub用户名>/<模块>:<commit SHA> 与 :latest（14 个镜像）
+# 产物：ghcr.io/<GitHub用户名>/<模块>:<commit SHA> 与 :latest（15 个镜像：后端 13 + 前端 2）
 # 部署端拉取：docker compose pull（配合 IMAGE_PREFIX 环境变量，见 docs/deployment.md）
 # ============================================================
 name: Docker Build & Push
@@ -21,7 +21,7 @@ on:
 
 jobs:
   backend:
-    name: Backend images (12)
+    name: Backend images (13)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,7 +37,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 12 个后端共用 docker/app/backend/Dockerfile 模板，循环构建推送
+      # 13 个后端共用 docker/app/backend/Dockerfile 模板，循环构建推送
       - name: Build & push backend images
         env:
           PREFIX: ghcr.io/${{ github.repository_owner }} # 仓库名需全小写
@@ -47,7 +47,7 @@ jobs:
           PREFIX=$(echo "$PREFIX" | tr '[:upper:]' '[:lower:]')
           for mod in mall-auth mall-admin mall-portal mall-member mall-product \
                      mall-cart mall-order mall-payment mall-coupon mall-seckill \
-                     mall-search mall-gateway; do
+                     mall-search mall-ai mall-gateway; do
             echo "==> Building $mod"
             docker build -f docker/app/backend/Dockerfile --build-arg MODULE=$mod \
               -t ${PREFIX}/$mod:${TAG} -t ${PREFIX}/$mod:latest .

@@ -15,7 +15,8 @@ export interface MockHandler {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   /** 路径模式，:param 为路径参数，如 /product/detail/:id */
   url: string
-  /** 返回 data 部分，自动包装为 { code: 200, message: 'ok', data }；返回 { _raw } 则原样输出 */
+  /** 返回 data 部分，自动包装为 { code: 200, message: 'ok', data }；返回 { _raw } 则原样输出；
+   *  返回 { _sse: string[] } 时按 text/event-stream 逐帧输出（帧间 30ms，模拟模型流式回复） */
   handler: (ctx: MockContext) => unknown
 }
 
@@ -71,6 +72,23 @@ export function mockPlugin(handlers: MockHandler[]): Plugin {
           const params = matchPath(h.url, path)
           if (!params) continue
           const data = await h.handler({ query, params, body })
+          // SSE 流式：handler 返回 { _sse: string[] } 时逐帧推送（AI 对话模拟打字机效果）
+          if (data && typeof data === 'object' && '_sse' in (data as object)) {
+            const frames = (data as { _sse: string[] })._sse
+            res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+            res.setHeader('Cache-Control', 'no-cache, no-transform')
+            let i = 0
+            const timer = setInterval(() => {
+              if (i >= frames.length) {
+                clearInterval(timer)
+                res.end()
+                return
+              }
+              res.write('data:' + frames[i] + '\n\n')
+              i++
+            }, 30)
+            return
+          }
           const payload =
             data && typeof data === 'object' && '_raw' in (data as object)
               ? (data as { _raw: unknown })._raw

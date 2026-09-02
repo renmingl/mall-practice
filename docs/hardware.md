@@ -2,7 +2,7 @@
 
 ### 硬件配置要求
 
-> 本项目 = 9 个中间件（12 个 Docker 容器，对应关系见下方内存明细表）+ 12 个后端微服务（JVM）+ 2 个前端（Node），**全量同时拉起的峰值内存远超普通单体项目**。先对照下表判断你的机器档位，再决定按哪种方式启动（16GB 机器实测：全量拉起时内存触顶、系统卡死，必须按需分批启动，降载策略见下文）。
+> 本项目 = 9 个中间件（12 个 Docker 容器，对应关系见下方内存明细表）+ 13 个后端微服务（JVM）+ 2 个前端（Node），**全量同时拉起的峰值内存远超普通单体项目**。先对照下表判断你的机器档位，再决定按哪种方式启动（16GB 机器实测：全量拉起时内存触顶、系统卡死，必须按需分批启动，降载策略见下文）。
 >
 > **跨平台说明**：本项目 Windows / macOS / Linux 三平台均可运行（代码与配置无任何平台依赖，Docker 安装方式见「环境准备详解」）。作者在 Windows 16GB 本机完成全部开发与验证，本页「实测 / 极限压缩」数据均出自该环境；Linux 原生 Docker 无 VM 层内存开销更低、Apple Silicon 内存效率更高——同配置只会更宽松，放心照做。文中标注「Windows 特有」的内容仅 Windows 用户需要关注，其余平台直接跳过即可。
 
@@ -23,19 +23,19 @@
 | SkyWalking（trace profile）<br>　├─ skywalking-oap | 512MB | ≈1GB | |
 | 　└─ skywalking-ui | 256MB | ≈0.2GB | |
 | **中间件小计** | — | **≈6.2GB** | 9 个中间件展开 12 容器：RocketMQ 3 + SkyWalking 2 + 其余 7 个各 1 |
-| 后端微服务 ×10 核心（gateway/auth/admin/portal/member/product/cart/order/payment/coupon；另 seckill/search 随阶段 7/8 启用） | 默认堆 | ≈4～5.5GB | 单个常驻 350～550MB |
+| 后端微服务 ×10 核心（gateway/auth/admin/portal/member/product/cart/order/payment/coupon；另 seckill/search/ai 随阶段 7/8/9 启用） | 默认堆 | ≈4～5.5GB | 单个常驻 350～550MB |
 | 前端 Vite dev ×2（mall-web-admin / mall-web-portal） | — | ≈1GB | 含依赖预构建 |
 | 开发工具（IDEA + 浏览器） | — | ≈3～5GB | |
 | Windows 系统 + Docker Desktop 引擎 | — | ≈3～4GB | |
 | **核心链路总计**（Nacos/MySQL/Redis + RocketMQ 3 容器 + Seata 共 7 容器约 3.3GB + 后端 10 个 + 前端 2 个，不含 IDE） | — | **≈8～10GB** | 16GB 起步档按此口径评估 |
-| **全量总计**（12 容器 6.2GB + 后端 12 个 + 前端 2 个 + IDE + Windows/Docker 引擎） | — | **≈15～20GB+** | 需 32GB 及以上（16GB 实测触顶卡死） |
+| **全量总计**（12 容器 6.2GB + 后端 13 个 + 前端 2 个 + IDE + Windows/Docker 引擎） | — | **≈16～21GB+** | 需 32GB 及以上（16GB 实测触顶卡死） |
 
 #### 配置分档
 
 | 档位 | 内存 | CPU | 磁盘 | 可运行范围 |
 |---|---|---|---|---|
 | 最低档 | 16GB | 8 核 | 100GB SSD | 基础中间件 3 件套（Nacos/MySQL/Redis）+ 4～6 个后端 + 1 个前端，其余按阶段分批启动 |
-| 推荐档 | 32GB | 8～16 核 | 200GB+ SSD | 全量中间件 + 12 个后端 + 2 个前端 + IDEA，顺畅运行 |
+| 推荐档 | 32GB | 8～16 核 | 200GB+ SSD | 全量中间件 + 13 个后端 + 2 个前端 + IDEA，顺畅运行 |
 | 顶配档 | 64GB+ | 16 核+ | 500GB+ SSD | 推荐档基础上支持 `--scale` 多实例 + JMeter 压测演练 |
 
 > 16GB 实测结论：Docker 全量中间件 + 全部后端服务 + 双前端 + IDEA 同时拉起时，内存占用持续触顶、系统无响应；**16GB 必须按需启动，32GB 才可全量顺畅**。
@@ -53,19 +53,19 @@
 
 #### 云服务器部署建议（以阿里云为例）
 
-本机内存不够时，可把整套系统拆到云服务器上（Linux 原生 Docker，无 Windows/Docker Desktop 额外开销，同配置比本机更能跑）。**最常见的做法是分开部署：一台机器只跑 Docker 中间件、另一台只跑 Java 应用**，两者互不干扰、故障面更小。部署形态与本地一致：docker-compose 起中间件、java -jar 起 12 个后端、Nginx 托管两个前端 dist 并反代 `/api` 到网关 8080。
+本机内存不够时，可把整套系统拆到云服务器上（Linux 原生 Docker，无 Windows/Docker Desktop 额外开销，同配置比本机更能跑）。**最常见的做法是分开部署：一台机器只跑 Docker 中间件、另一台只跑 Java 应用**，两者互不干扰、故障面更小。部署形态与本地一致：docker-compose 起中间件、java -jar 起 13 个后端、Nginx 托管两个前端 dist 并反代 `/api` 到网关 8080。
 
 | 部署形态 | 机器 | 规格建议（阿里云 ECS） | 内存估算依据 | 适用场景 |
 |---|---|---|---|---|
-| 单机全量 | 1 台 | 8C32G（ecs.g7.2xlarge） | 全量中间件约 6GB + 12 个后端 5～6.5GB + 前端/Nginx 约 1GB + 系统 2～3GB ≈ 峰值 15GB | 最省，学习/演示 |
-| 双机分离（最常见） | 2 台 | 8C16G（ecs.c7.2xlarge）×2 | Docker 机：全量中间件 6GB + 系统 2～3GB ≈ 9GB；应用机：12 个后端 5～6.5GB + 前端 1GB + 系统 2GB ≈ 9.5GB | Docker 与 Java 各占一机，互不干扰 |
-| 三机生产雏形 | 3 台 | 4C8G（ecs.c7.xlarge）+ 8C16G ×2 | 数据库机：MySQL/Redis ≈ 1.5GB；中间件机：其余中间件 ≈ 7.5GB；应用机：12 个后端 + 前端 ≈ 9.5GB | 数据库独立，贴近生产拓扑 |
+| 单机全量 | 1 台 | 8C32G（ecs.g7.2xlarge） | 全量中间件约 6GB + 13 个后端 5.5～7GB + 前端/Nginx 约 1GB + 系统 2～3GB ≈ 峰值 16GB | 最省，学习/演示 |
+| 双机分离（最常见） | 2 台 | 8C16G（ecs.c7.2xlarge）×2 | Docker 机：全量中间件 6GB + 系统 2～3GB ≈ 9GB；应用机：13 个后端 5.5～7GB + 前端 1GB + 系统 2GB ≈ 10GB | Docker 与 Java 各占一机，互不干扰 |
+| 三机生产雏形 | 3 台 | 4C8G（ecs.c7.xlarge）+ 8C16G ×2 | 数据库机：MySQL/Redis ≈ 1.5GB；中间件机：其余中间件 ≈ 7.5GB；应用机：13 个后端 + 前端 ≈ 10GB | 数据库独立，贴近生产拓扑 |
 
 只跑部分组件时的起步配置：
 
 - **只跑基础中间件**（Nacos/MySQL/Redis，约 1.2GB）：Docker 机 4C8G 即可
 - **只跑当前阶段后端**（4～6 个服务，约 3GB）：应用机 4C8G 起步
-- **全量中间件**（12 个容器约 6GB）或 **全量 12 个后端**（约 6.5GB）：分别需要 8C16G
+- **全量中间件**（12 个容器约 6GB）或 **全量 13 个后端**（约 7GB）：分别需要 8C16G
 
 补充说明：
 

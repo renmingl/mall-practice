@@ -49,4 +49,9 @@ public interface OrderFeignClient {
     /** 近 7 天订单趋势（看板：每天订单数 + 已支付销售额） */
     @GetMapping("/stats/trend")
     Result<List<Map<String, Object>>> trend7d();
+
+    /** 最近订单（阶段 9 16.3 AI 问答供给：按会员查最近 N 单精简摘要，含商品项） */
+    @GetMapping("/recent")
+    Result<List<Map<String, Object>>> recentOrders(@RequestParam("memberId") Long memberId,
+                                                   @RequestParam(value = "limit", defaultValue = "5") Integer limit);
 }

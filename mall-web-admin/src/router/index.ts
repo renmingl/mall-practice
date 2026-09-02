@@ -34,7 +34,9 @@ const router = createRouter({
         // 阶段 7：运营数据看板 + 秒杀配置（场次/商品同一页面按路径定位 tab；菜单由 admin_menu 种子控制）
         { path: 'dashboard', name: 'dashboard', component: () => import('@/views/dashboard/DashboardView.vue'), meta: { title: '数据看板' } },
         { path: 'seckill/session', name: 'seckill-session', component: () => import('@/views/seckill/SeckillAdminView.vue'), meta: { title: '秒杀场次' } },
-        { path: 'seckill/product', name: 'seckill-product', component: () => import('@/views/seckill/SeckillAdminView.vue'), meta: { title: '秒杀商品' } }
+        { path: 'seckill/product', name: 'seckill-product', component: () => import('@/views/seckill/SeckillAdminView.vue'), meta: { title: '秒杀商品' } },
+        // 阶段 9：AI 助手（后台管理员对话；菜单由 admin_menu 种子控制）
+        { path: 'ai', name: 'ai-chat', component: () => import('@/views/ai/AiChatView.vue'), meta: { title: 'AI 助手' } }
       ]
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') }

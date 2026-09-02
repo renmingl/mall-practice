@@ -5,6 +5,7 @@ import {
   suppliers, purchases, purchaseItems, stockLogs,
   orders, orderItems, refunds, couponTemplates,
   seckillSessions, seckillProducts, comments, dashboard,
+  aiSessions, aiMessagesBySession,
   clone, paginate, fmtDateTime
 } from './db'
 
@@ -84,6 +85,47 @@ function stockRows() {
       updateTime: fmtDateTime(new Date())
     }
   })
+}
+
+// ---------- AI 助手 Mock ----------
+
+/** 模型清单：与真实 /api/ai/config 同构；mock 仅 DeepSeek 可用，其余置灰展示选择器能力边界 */
+function aiMockModels() {
+  return [
+    { provider: 'deepseek', label: 'DeepSeek', model: 'deepseek-chat', available: true },
+    { provider: 'qwen', label: '通义千问', model: 'qwen-plus', available: false },
+    { provider: 'openai', label: 'OpenAI', model: 'gpt-4o-mini', available: false },
+    { provider: 'zhipu', label: '智谱 GLM', model: 'glm-4-flash', available: false }
+  ]
+}
+
+/** 关键词命中演示回复（口径与看板 mock 数据一致） */
+function aiMockReply(question: string): string {
+  const q = question || ''
+  let body =
+    '你好，我是 mall-practice AI 助手。请以管理员身份向我提问，例如「今天订单量怎么样」「哪些商品库存预警」「销量排行」等。'
+  if (/订单|销售|卖|交易/.test(q)) {
+    body = '截至当前，今日共产生订单 128 单，销售额 ¥45,680.50，其中秒杀订单 23 单；近 7 天整体呈上升趋势。'
+  } else if (/库存|预警|缺货|补货/.test(q)) {
+    body = '当前有 3 个 SKU 触发库存预警：SKU20260827801（8 件）、SKU20260827131（6 件）、SKU20260827141（4 件），建议尽快发起采购补货。'
+  } else if (/销量|排行|热销|畅销/.test(q)) {
+    body = '近 30 天销量 Top5：漫步者 NeoBuds Pro 2（12,780）、小米无线鼠标（15,678）、小米 14（8,932）、索尼 WH-1000XM5（6,543）、小米机械键盘（4,321）。'
+  } else if (/会员|用户|运营/.test(q)) {
+    body = '当前在线会员 156 人，今日活跃 3,203 人，签到 1,876 人，新增注册 45 人。'
+  } else if (/你好|hi|hello|你是谁/.test(q)) {
+    body = '你好，我是 mall-practice 电商微服务学习项目的 AI 助手，可以帮你查订单、库存、销量等运营数据，也可以解答项目架构问题。'
+  }
+  return body + '（Mock 演示回复：启动真实后端并配置模型 API Key 后，由大模型实时生成）'
+}
+
+/** 回复文本拆为 SSE 增量帧（每 4 字一帧；与 mall-ai 帧协议一致） */
+function aiSseFrames(text: string): string[] {
+  const frames: string[] = []
+  for (let i = 0; i < text.length; i += 4) {
+    frames.push(JSON.stringify({ delta: text.slice(i, i + 4) }))
+  }
+  frames.push(JSON.stringify({ done: true }))
+  return frames
 }
 
 // ---------- Handler 注册表 ----------
@@ -635,5 +677,34 @@ export const handlers: MockHandler[] = [
 
   // ---- 网关链路 ----
   { method: 'GET', url: '/common/ping', handler: () => 'pong' },
-  { method: 'GET', url: '/common/trace', handler: () => 'mock-trace-id-' + Date.now() }
+  { method: 'GET', url: '/common/trace', handler: () => 'mock-trace-id-' + Date.now() },
+  // ---- AI 助手（mall-ai /api/ai）----
+  { method: 'GET', url: '/ai/config', handler: () => aiMockModels() },
+  { method: 'GET', url: '/ai/sessions', handler: () => clone(aiSessions) },
+  {
+    method: 'GET', url: '/ai/messages', handler: (ctx) =>
+      clone(aiMessagesBySession[String(ctx.query.sessionId)] || [])
+  },
+  {
+    method: 'POST', url: '/ai/chat/stream', handler: (ctx) => {
+      const body = (ctx.body || {}) as { message?: string; sessionId?: string }
+      const reply = aiMockReply(body.message)
+      // 追加进会话库：让左侧历史列表 / 刷新后可见新会话（与后端 ai_chat_message 落库语义对齐）
+      const sid = body.sessionId || 'mock-ai-' + Date.now()
+      const arr = (aiMessagesBySession[sid] ||= [])
+      const q = (body.message || '').trim()
+      arr.push({ role: 'user', content: q }, { role: 'assistant', content: reply })
+      const preview = q.length > 24 ? q.slice(0, 24) + '…' : q
+      const found = aiSessions.find((s) => s.sessionId === sid)
+      if (found) {
+        found.preview = preview
+        found.total = arr.length
+        found.createTime = fmtDateTime(new Date())
+      } else {
+        aiSessions.unshift({ sessionId: sid, preview, total: arr.length, createTime: fmtDateTime(new Date()) })
+      }
+      return { _sse: aiSseFrames(reply) }
+    }
+  },
+  { method: 'POST', url: '/ai/chat', handler: () => null } // 非流式兜底（页面主链路走 /chat/stream）
 ]

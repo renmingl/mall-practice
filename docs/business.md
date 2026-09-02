@@ -2,7 +2,7 @@
 
 ### 业务表设计总览
 
-`sql/mall.sql` 共 **29 张表**，表名前缀 = **数据语义域**（表装的是哪一域数据，而非被哪个平台使用）——多数域与模块同名（member_* 会员域归 mall-member、product_* 商品域归 mall-product）；例外有两个——admin_*（语义域 = 后台管理，管理员账号 + RBAC，由 mall-auth 认证权限服务持有）与 tx_message / mq_dead_letter（公共域组件表，归 mall-common，前缀取语义而非模块名）：
+`sql/mall.sql` 共 **30 张表**，表名前缀 = **数据语义域**（表装的是哪一域数据，而非被哪个平台使用）——多数域与模块同名（member_* 会员域归 mall-member、product_* 商品域归 mall-product）；例外有两个——admin_*（语义域 = 后台管理，管理员账号 + RBAC，由 mall-auth 认证权限服务持有）与 tx_message / mq_dead_letter（公共域组件表，归 mall-common，前缀取语义而非模块名）：
 
 | 域 | 模块 | 表 | 支撑场景 |
 |---|---|---|---|
@@ -15,6 +15,7 @@
 | 营销域 | mall-coupon | coupon、coupon_user | 优惠券（发行总量/每人限领 per_limit）、领取/锁定/核销记录 |
 | 秒杀域 | mall-seckill | seckill_session、seckill_product | 秒杀场次、秒杀商品（限购/秒杀价/秒杀库存） |
 | 公共域（组件） | mall-common | tx_message、mq_dead_letter | 本地消息表（事务消息/最终一致性）+ 死信落库表（消费重试耗尽人工介入；表由使用消息的服务操作，如 order/payment，mall-common 本身不连 MySQL） |
+| AI 域 | mall-ai | ai_chat_message | AI 对话历史（scene+session_id+user 归属，仅登录态落库；游客不落库） |
 
 无表模块：mall-cart（购物车纯 Redis Hash）、mall-search（ES 索引）、平台聚合层（gateway/admin/portal）；后台管理域 admin_* 五表由 mall-auth 持有。
 
@@ -65,6 +66,7 @@
 | 系统管理 | 用户管理 | 后台账号增删改 / 重置密码 / 分配角色 | 1.7 |
 | | 角色管理 | 角色 + 权限分配 | 1.8、1.9 |
 | | 菜单管理 | 菜单 / 按钮权限维护 | 1.8 |
+| AI 助手 | — | AI 对话（SSE 流式）/ 模型选择 / 会话历史续聊 / 管理侧数据问答（今日订单 / 趋势 / 库存预警 / 销量排行 / 会员运营） | 16.1～16.7 |
 
 #### 前台商城（mall-portal）
 
@@ -90,6 +92,7 @@
 | | 我的积分 | 余额 / 流水 / 签到 | 1.11、10.3 |
 | | 我的优惠券 | 可用 / 已用 / 过期 | 4.2～4.6 |
 | 秒杀频道 | 秒杀会场 | 场次切换 / 秒杀下单 / 结果查询 | 14.1、14.4、14.5、14.6 |
+| 全局浮窗 | AI 客服 | 右下角客服浮窗：游客通用问答；登录会员查本人券 / 订单 / 积分（能力分层） | 16.1～16.7 |
 
 **两平台边界**：前台只做买货相关（浏览 / 加购 / 下单 / 售后申请 / 个人资产），无任何管理动作；后台只做运营管理（商品 / 库存 / 采购 / 订单履约 / 售后审核 / 营销 / 数据 / 系统），无购物车 / 收藏等买家行为。同一业务对象两侧视图不同（如库存：前台只读剩余量，后台可查可盘可入）。
 
@@ -117,3 +120,4 @@
 | **13. 架构进阶与性能优化** | 13.1 Canal 同步缓存<br>13.2 ES 商品搜索<br>13.3 Caffeine 多级缓存<br>13.4 网关层限流鉴权<br>13.5 订单分库分表<br>13.6 SkyWalking 链路排查 | 13.1 监听 MySQL binlog（canal-server 1.1.7 编排 + instance.properties + mall-search CanalSyncService 消费端）<br>13.2 分词 / 高亮<br>13.3 本地缓存多级缓存<br>13.4 RequestRateLimiter 令牌桶限流（秒杀路由 20/s、登录路由 10/s，Redis 计数）+ AuthGlobalFilter JWT 鉴权与 /api/admin/** 角色校验<br>13.5 ShardingSphere<br>13.6 排查慢调用 |
 | **14. 秒杀场景**（mall-seckill） | 14.1 场次管理<br>14.2 秒杀商品配置<br>14.3 库存预热<br>14.4 秒杀下单（Lua 扣减 + 限购）<br>14.5 MQ 削峰异步下单<br>14.6 秒杀结果查询 | 14.1 seckill_session 场次（时间 / 状态）<br>14.2 seckill_product：seckill_price 秒杀价 / seckill_stock 秒杀库存 / limit_per_user 每人限购<br>14.3 活动开始前秒杀库存同步预热到 Redis（配置校验 seckill_stock ≤ sku.stock）<br>14.4 Lua 原子扣减 + 限购校验（防超卖 / 防黄牛；限购计数 seckill:limit:{pid}:{memberId} 按每人维度隔离，预扣标记 seckill:reserved:{pid}:{memberId} 同维度；存 Redis 无 DB 持久化——学习项目可接受，Redis 故障限购失效）<br>14.5 前端快速失败 → MQ 削峰 → 异步创建订单（orders.order_type=2；落单前 order 调 seckill 核验 Redis 预扣资格（Feign 默认 / Dubbo 可选，双通道），防绕过秒杀入口直接下单）→ 异步扣 sku.stock（change_type=4）<br>14.6 下单结果轮询 / 通知；秒杀订单超时关单：活动进行中回补 Redis 秒杀库存，活动已结束回补 sku.stock（change_type=9）<br>**表**：seckill_session、seckill_product、orders（order_type=2） |
 | **15. 进销存场景**（mall-product） | 15.1 供应商管理<br>15.2 采购单创建 / 审核<br>15.3 采购入库（分批收货）<br>15.4 库存盘点 / 调整<br>15.5 退货入库<br>15.6 出入库流水对账 | 15.1 product_supplier 供应商档案（联系人 / 电话 / 状态，停用不可下采购单）<br>15.2 product_purchase 状态机（0待审核 1待收货 2部分入库 3已完成 4已取消）+ product_purchase_item 明细（采购价 / 数量 / 已入库数）<br>15.3 分批入库：received_quantity 累计 ≤ quantity，入库事务 = sku.stock 增加 + stock_log 留痕（change_type=5）；库存预警联动 5.5 触发补货<br>15.4 盘点差异调整 stock（@Version 乐观锁条件更新）+ 流水留痕（change_type=7，报损 / 报溢）<br>15.5 退款需退货 → 买家寄回 → 后台确认收货 → 退货入库（change_type=6）+ 第三方退款打款<br>15.6 stock_log 按 change_type / biz_sn 聚合对账（进货-销售-退货闭环）<br>为什么先采购入库再上架：销售库存的来源，避免「无货源直接设库存」的空中楼阁<br>**表**：product_supplier、product_purchase、product_purchase_item、product_stock_log（biz_sn / change_type） |
+| **16. AI 助手场景**（mall-ai）【阶段 9】 | 16.1 多模型接入<br>16.2 API Key 自配与可用性自检<br>16.3 SSE 流式对话<br>16.4 登录态能力分层（游客 / 买家 / 管理员）<br>16.5 会话历史入库与续聊<br>16.6 意图路由 + Feign 数据供给<br>16.7 项目知识检索 | 16.1 OpenAI 兼容协议多供应商（DeepSeek / 通义 / OpenAI / 智谱 4 家预设，base-url 与 model 各不同；JDK HttpClient 直连，无额外依赖）<br>16.2 Key 由使用者自配（docker/.env 环境变量注入），未配置 key 的模型在 GET /api/ai/config 标记 available=false 自动禁用，对话请求未配置模型会明确报错<br>16.3 POST /api/ai/chat/stream 返回 text/event-stream（data:{"delta":"..."} 增量 / {"done":true} 结束 / {"error":"..."} 异常）；网关 /api/ai/** 可选鉴权（带 token 校验注入身份，无 token 游客放行）<br>16.4 身份由网关注入：游客仅通用问答与知识；买家可查本人券/账户/最近订单/购物车；管理员可查今日订单/趋势/库存预警/销量排行/浏览 Top/会员运营——能力边界写入 system 提示，admin 场景后端强校验仅 ADMIN<br>16.5 登录态消息落库 ai_chat_message（scene+sessionId 归属隔离，会话上下文自动取最近 6 轮；游客不落库无状态）；sessions/messages 接口供前端历史续聊<br>16.6 关键词命中才经 mall-api Feign 取实时数据（member/order/coupon/cart/product 契约），单服务故障降级不阻断对话<br>16.7 知识库单源 = 仓库 docs/*.md（pom 构建期复制进 classpath，docs 变更随版本与镜像自动同步，无第二份人工维护）；docs 按行分块（跳标题/代码块/表格分隔线、清洗 md 噪音、超长行按标点切块、总长预算截断），双字 token 命中 Top-3 拼入 system 提示<br>**表**：ai_chat_message（idx_session / idx_user；双端入口：后台 /ai 页 + 前台客服浮窗） |

@@ -273,6 +273,36 @@ public class CouponService {
         return result;
     }
 
+    /**
+     * 我的全部未使用券（阶段 9 16.3 AI 问答供给）：未使用 + 未过期，不分门槛；
+     * 与 getAvailableCoupons 的区别是不做 totalAmount 达标过滤，discountAmount 不计算（null）
+     */
+    public List<CouponAvailableDTO> mineCoupons(Long memberId) {
+        List<CouponUser> users = couponUserMapper.selectList(new LambdaQueryWrapper<CouponUser>()
+                .eq(CouponUser::getMemberId, memberId)
+                .eq(CouponUser::getStatus, 0));
+        List<CouponAvailableDTO> result = new ArrayList<>();
+        for (CouponUser cu : users) {
+            Coupon coupon = couponMapper.selectById(cu.getCouponId());
+            if (coupon == null || coupon.getStatus() != 1) {
+                continue;
+            }
+            if (coupon.getUseStartTime().isAfter(LocalDateTime.now())
+                    || coupon.getUseEndTime().isBefore(LocalDateTime.now())) {
+                continue;
+            }
+            CouponAvailableDTO dto = new CouponAvailableDTO();
+            dto.setCouponUserId(cu.getId());
+            dto.setCouponId(coupon.getId());
+            dto.setName(coupon.getName());
+            dto.setType(coupon.getType());
+            dto.setAmount(coupon.getAmount());
+            dto.setThreshold(coupon.getThreshold());
+            result.add(dto);
+        }
+        return result;
+    }
+
     /** 锁券：0→1（下单占用；校验归属与有效期，幂等：同订单已锁定直接成功） */
     @Transactional(rollbackFor = Exception.class)
     public void lock(Long couponUserId, Long memberId, Long orderId) {

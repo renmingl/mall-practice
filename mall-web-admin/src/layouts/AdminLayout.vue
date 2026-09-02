@@ -23,7 +23,8 @@ const ICON_MAP: Record<string, string> = {
   coupon: 'Ticket',
   seckill: 'Timer',
   member: 'UserFilled',
-  trade: 'ShoppingCart'
+  trade: 'ShoppingCart',
+  chat: 'ChatDotRound'
 }
 
 function iconOf(name?: string) {

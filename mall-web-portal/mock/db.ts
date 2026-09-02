@@ -460,6 +460,28 @@ export const likeCountMap = new Map<number, number>([
   [1, 128], [2, 96], [3, 342], [4, 88], [5, 76], [6, 523], [7, 618], [8, 45], [9, 67], [10, 213], [11, 892], [12, 456], [13, 156], [14, 98], [15, 234]
 ])
 
+// ---------- AI 客服（演示会话；发送新消息后由 /ai/chat/stream mock 自动追加，刷新重置） ----------
+
+export interface MockAiSession {
+  sessionId: string
+  preview: string
+  total: number
+  createTime: string
+}
+
+export const aiSessions: MockAiSession[] = [
+  { sessionId: 'mock-portal-ai-0001', preview: '我的优惠券还有哪些可以用？', total: 4, createTime: fmtDateTime(hoursAgo(5)) }
+]
+
+export const aiMessagesBySession: Record<string, { role: 'user' | 'assistant'; content: string }[]> = {
+  'mock-portal-ai-0001': [
+    { role: 'user', content: '我的优惠券还有哪些可以用？' },
+    { role: 'assistant', content: '你当前有 2 张可用优惠券：\n1. 新人满 99 减 10（有效期至 2026-12-31）\n2. 618 大促满 500 减 80（有效期至 2026-12-31）\n结算时会自动匹配最优优惠。' },
+    { role: 'user', content: '最近订单呢？' },
+    { role: 'assistant', content: '你最近一笔订单：订单号 20260828100220002，漫步者 NeoBuds Pro 2 ×1 共 ¥399，当前状态为「待收货」。' }
+  ]
+}
+
 // ---------- 通用工具 ----------
 
 export function clone<T>(v: T): T {

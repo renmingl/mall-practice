@@ -18,6 +18,7 @@
 | mall-coupon | 8900 | 20889 | 9703 | 8080 |
 | mall-seckill | 9000 | 20890 | 9705 | 8080 |
 | mall-search | 9100 | 20891 | — | 8080 |
+| mall-ai | 9200 | 20892 | — | 8080 |
 
 > XXL-Job 执行器端口仅接入任务调度的 5 个服务启用（order 9701 / payment 9702 / coupon 9703 / product 9704 / seckill 9705，`xxl.job.executor.port` 配置，任务清单见 sql/xxl_job.sql 种子）；其余服务未引入 xxl-job-core。
 
@@ -53,9 +54,9 @@
 
 ## Docker 独立部署（镜像化一键部署）
 
-12 个后端微服务 + 2 个前端已全部支持打镜像（仓库已含 Dockerfile 与 compose 微服务段）：
+13 个后端微服务 + 2 个前端已全部支持打镜像（仓库已含 Dockerfile 与 compose 微服务段）：
 
-- 后端：`docker/app/backend/Dockerfile` 通用多阶段模板（Maven 构建 fat jar → `eclipse-temurin:17-jre` 运行），12 模块共用，`--build-arg MODULE=<模块名>` 区分
+- 后端：`docker/app/backend/Dockerfile` 通用多阶段模板（Maven 构建 fat jar → `eclipse-temurin:17-jre` 运行），13 模块共用，`--build-arg MODULE=<模块名>` 区分
 - 前端：`docker/app/frontend/Dockerfile` 通用镜像（Node 构建 → Nginx 托管，同域反代网关），admin/portal 共用，`--build-arg APP_DIR=<前端目录>` 区分（Nginx 配置同目录 `nginx.conf`）
 - 镜像命名：`${IMAGE_PREFIX:-mall-practice}/<模块>:${APP_TAG:-latest}`（本地默认 `mall-practice/xxx:latest`）
 - 配置：各模块 application.yml 写死的 127.0.0.1 由 compose 环境变量覆盖为容器服务名（Spring Boot 宽松绑定，零代码改动）
@@ -67,7 +68,7 @@ docker/ 目录下两个 compose 文件（需在同一目录运行；compose 项�
 | 文件 | 内容 | 镜像来源 |
 |---|---|---|
 | `docker-compose.yml` | 12 个中间件容器（Nacos/MySQL/Redis/RocketMQ/Seata/ES/Canal/XXL-Job/SkyWalking），profile 按需启动 | Docker Hub 直接拉取 |
-| `docker-compose.apps.yml` | 14 个应用（12 微服务 + 2 前端），含环境变量锚点 | 源码构建（`docker compose build`） |
+| `docker-compose.apps.yml` | 15 个应用（13 微服务 + 2 前端），含环境变量锚点 | 源码构建（`docker compose build`） |
 
 - **合并运行**（一条命令全部启动）：`docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile rocketmq --profile seata --profile task up -d`
 - **分开运行**：先 `docker compose up -d`（中间件，含 profile 按需），再 `docker compose -f docker-compose.apps.yml up -d`（应用，无本地镜像时自动构建）
@@ -87,7 +88,7 @@ set SKIP_BUILD=1 && .\docker\build-and-run.cmd    # 已有镜像，只启动容�
 ./docker/build-and-run.sh
 ```
 
-脚本流程：`git clone/pull` → 检查 `docker/.env`（缺失则从模板复制并提示修改）→ `docker compose -f docker-compose.apps.yml build`（构建 14 个应用镜像）→ `docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile rocketmq --profile seata --profile task up -d`（双文件合并：中间件 + 全部应用）一条命令完成部署。
+脚本流程：`git clone/pull` → 检查 `docker/.env`（缺失则从模板复制并提示修改）→ `docker compose -f docker-compose.apps.yml build`（构建 15 个应用镜像）→ `docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile rocketmq --profile seata --profile task up -d`（双文件合并：中间件 + 全部应用）一条命令完成部署。
 
 ### 方式二：手动构建部署（本机开发推荐：直接构建当前工作区代码，未提交的改动也会打进镜像，无需 git commit）
 
@@ -104,10 +105,10 @@ docker compose -f docker-compose.apps.yml up -d --scale mall-order=3   # 订单�
 
 ### CI 自动构建（GitHub Actions）
 
-仓库内置 CI：`.github/workflows/docker-build.yml`，**push 到 master 后自动构建全部 14 个镜像并推送到 GHCR**（GitHub Container Registry，GitHub 自带镜像仓库，无需额外 Token）。**CI 只能构建已提交（push）的代码**；本地未提交的修改无法触发 CI，请用「方式二」在本地直接构建：
+仓库内置 CI：`.github/workflows/docker-build.yml`，**push 到 master 后自动构建全部 15 个镜像并推送到 GHCR**（GitHub Container Registry，GitHub 自带镜像仓库，无需额外 Token）。**CI 只能构建已提交（push）的代码**；本地未提交的修改无法触发 CI，请用「方式二」在本地直接构建：
 
 - **触发条件**：push 到 master（仅后端/前端/docker 相关代码变更才触发，纯文档变更不浪费构建）；也可在 Actions 页面手动 **Run workflow** 触发
-- **构建产物**：`ghcr.io/<GitHub用户名>/<模块>:<commit SHA>` 与 `:latest`（镜像名小写；后端 12 个 + 前端 2 个；公共仓库任何人可拉取）
+- **构建产物**：`ghcr.io/<GitHub用户名>/<模块>:<commit SHA>` 与 `:latest`（镜像名小写；后端 13 个 + 前端 2 个；公共仓库任何人可拉取）
 - **权限**：仓库需开启 Actions 写权限（Settings → Actions → General → **Workflow permissions** → Read and write permissions），否则推送 GHCR 会失败
 - **fork 自建**：fork 后 Actions 默认不运行，需在 fork 仓库手动开启；构建产物推送到 `ghcr.io/<fork用户名>/...`，部署时相应修改 IMAGE_PREFIX
 
@@ -123,7 +124,7 @@ docker compose -f docker-compose.apps.yml up -d --scale mall-order=3   # 订单�
 
 ### 注意事项
 
-- **内存**：12 个微服务 JVM 已限制 `-Xmx256m`，全开约 4GB；内存紧张可 `docker compose -f docker-compose.apps.yml stop mall-search` 等按需停服
+- **内存**：13 个微服务 JVM 已限制 `-Xmx256m`，全开约 4GB；内存紧张可 `docker compose -f docker-compose.apps.yml stop mall-search` 等按需停服
 - **搜索功能**：需先启动 ES/Canal：`cd docker && docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile search up -d`
 - **xxl-job 初始化**：首次使用需在 MySQL 导入 `sql/xxl_job.sql`（3.1.0 表结构）
 - **本机中间件替代**：若使用本机 MySQL/Redis，删除 compose 对应服务段，并把微服务环境变量中的 `mysql:3306`/`redis:6379` 改为 `host.docker.internal:3306`/`host.docker.internal:6379`，同时删除对应 `depends_on` 条目

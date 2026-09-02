@@ -1,5 +1,5 @@
 -- ============================================================
--- mall 业务库（第三版：28 张表，覆盖电商核心链路 + 经典面试场景）
+-- mall 业务库（第三版：30 张表，覆盖电商核心链路 + 经典面试场景）
 -- 命名规则：表名前缀 = 数据语义域（表装哪一域的数据），多数域与模块同名，见表名即知所属服务
 --   member_*          → 会员域（mall-member）：member / member_address / member_point_log / member_favorite
 --   admin_*           → 后台管理域（管理员账号 + RBAC 五表）：admin_user / admin_role / admin_menu / admin_user_role / admin_role_menu，由 mall-auth 认证权限服务持有（认证是动作无表，账号权限数据按语义域命名）
@@ -8,6 +8,7 @@
 --   payment_*         → mall-payment 支付服务（payment / payment_refund）
 --   coupon_*          → mall-coupon 优惠券服务（coupon / coupon_user）
 --   seckill_*         → mall-seckill 秒杀服务（seckill_session / seckill_product）
+--   ai_chat_message   → mall-ai AI 助手服务（对话历史，仅登录态落库）
 --   tx_message        → 公共域：本地消息表（mall-common 事务消息组件，非业务模块专属）
 -- 无表模块：
 --   mall-cart   购物车：纯 Redis（hash 结构，key=cart:{memberId}）
@@ -636,3 +637,28 @@ CREATE TABLE `product_purchase_item` (
   UNIQUE KEY `uk_purchase_sku` (`purchase_id`, `sku_id`),
   KEY `idx_sku_id` (`sku_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购单明细表（进销存-进）';
+
+-- ==========================================
+-- AI 问答域（mall-ai，阶段 9）：对话历史入库（仅登录态落库；游客普通问答无状态）
+-- ==========================================
+CREATE TABLE `ai_chat_message` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '消息ID',
+  `scene`       VARCHAR(16)  NOT NULL COMMENT '场景：admin 后台助手 / portal 前台客服',
+  `session_id`  VARCHAR(64)  NOT NULL COMMENT '会话ID（UUID；同一会话多轮共享，历史按会话粒度加载）',
+  `user_id`     BIGINT       DEFAULT NULL COMMENT '用户ID（admin 场景=管理员ID，portal 场景=会员ID；游客不落库）',
+  `user_type`   VARCHAR(16)  DEFAULT NULL COMMENT '用户类型：ADMIN / MEMBER（游客不落库）',
+  `role`        VARCHAR(16)  NOT NULL COMMENT '消息角色：user 用户提问 / assistant 模型回答',
+  `content`     TEXT         NOT NULL COMMENT '消息内容',
+  `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_session` (`scene`, `session_id`),
+  KEY `idx_user` (`scene`, `user_id`, `create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 助手对话消息表';
+
+-- AI 助手菜单（后台顶级菜单，type=2 叶子，/ai 与前端路由对齐；icon 与 AdminLayout ICON_MAP 映射一致）
+INSERT INTO `admin_menu` (`parent_id`, `name`, `type`, `path`, `perms`, `icon`, `sort`, `status`) VALUES
+(0, 'AI 助手', 2, '/ai', 'ai:chat', 'chat', 7, 1);
+
+-- 超级管理员补绑 AI 助手菜单（admin_role_menu 全量 SELECT 在菜单插入前执行过，此处单独补绑）
+INSERT INTO `admin_role_menu` (`role_id`, `menu_id`)
+SELECT 1, `id` FROM `admin_menu` WHERE `perms` = 'ai:chat';

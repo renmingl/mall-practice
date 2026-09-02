@@ -9,10 +9,13 @@
 | Seata 客户端与服务端版本不对齐 | 运行时协议不匹配风险 | SCA 2025.1.0.0 管理的客户端为 2.5.0，服务端镜像已同步使用 `apache/seata-server:2.5.0` |
 | MyBatis-Plus 在 Boot 4 下启动失败 | 普通 starter 不适配 Boot 4 | 必须使用 `mybatis-plus-spring-boot4-starter`（3.5.13 起支持 Boot 4，本工程 3.5.17） |
 | Maven 3.6.0 编译报插件版本要求错误 | maven-compiler-plugin 3.13.0 要求 Maven ≥ 3.6.3 | 升级 Maven 3.9.16 后使用 3.13.0（旧 Maven 低于 3.6.3 时需降插件到 3.10.1） |
-| Dubbo / Knife4j / ES 客户端的 Boot 4 适配未确认 | 引入可能启动失败 | 接口文档已改用 springdoc-openapi 3.1.0（12 服务 doc.html 落地）；Dubbo 3.3.6 已引入（Boot 4 官方未声明适配，默认 Triple 启动正常，dubbo.enabled=false 可降级 Feign）；ES 客户端 8.17.4 已引入（阶段 8 搜索落地）；RocketMQ / Seata / Sentinel 已由 SCA 2025.1.0.0 官方适配 Boot 4（Release Notes：RocketMQ module support Spring Boot 4.0、Sentinel 适配 Jackson 3），无需验证 |
+| Dubbo / Knife4j / ES 客户端的 Boot 4 适配未确认 | 引入可能启动失败 | 接口文档已改用 springdoc-openapi 3.1.0（13 服务 doc.html 落地）；Dubbo 3.3.6 已引入（Boot 4 官方未声明适配，默认 Triple 启动正常，dubbo.enabled=false 可降级 Feign）；ES 客户端 8.17.4 已引入（阶段 8 搜索落地）；RocketMQ / Seata / Sentinel 已由 SCA 2025.1.0.0 官方适配 Boot 4（Release Notes：RocketMQ module support Spring Boot 4.0、Sentinel 适配 Jackson 3），无需验证 |
 
 
 ## 常见问题（FAQ）
+
+**Q：前后台登录的默认账号密码是什么？**
+A：统一为 `admin / admin123`（后台为超级管理员；前台商城同账密为演示买家，两套账号体系分表互不影响）。种子数据随 `sql/mall.sql` 首次导入自动生效，图形验证码固定 `8888`；双端入口与账号见 README「第 5 步：验证」。
 
 **Q：本机已有 MySQL/Redis 占用 3306/6379，会与容器冲突吗？**
 A：docker/docker-compose.yml 采用按需启动（默认 Nacos/MySQL/Redis 三个基础件，其余用 `--profile` 拉起，命令见「快速开始」第 3 步）；若本机已装某服务仍可能冲突，按规则处理：本机已安装哪个服务，就删除对应的服务段（如删除 mysql/redis 段），删除后再 `docker compose up -d`（在 docker/ 目录执行）。

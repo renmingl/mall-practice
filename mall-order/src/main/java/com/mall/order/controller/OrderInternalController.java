@@ -4,6 +4,8 @@ import com.mall.api.order.CommentValidateResult;
 import com.mall.api.order.OrderInfoDTO;
 import com.mall.api.order.OrderItemInfoDTO;
 import com.mall.common.result.Result;
+import com.mall.mbg.entity.OrderItem;
+import com.mall.mbg.entity.Orders;
 import com.mall.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -75,5 +79,38 @@ public class OrderInternalController {
     @GetMapping("/stats/trend")
     public Result<List<Map<String, Object>>> trend7d() {
         return Result.success(orderService.trend7d());
+    }
+
+    // ==================== AI 问答数据供给（阶段 9 16.3：mall-ai 按需拉取拼上下文） ====================
+
+    /**
+     * 最近订单精简摘要（买家问"我的最近订单"等）：按会员拉最近 N 单，只保留模型可读字段，
+     * 避免把完整订单实体塞进 AI 上下文浪费 token；status：0待付款 1待发货 2待收货 3已完成 4已取消 5已退款
+     */
+    @GetMapping("/recent")
+    public Result<List<Map<String, Object>>> recentOrders(@RequestParam("memberId") Long memberId,
+                                                          @RequestParam(value = "limit", defaultValue = "5") Integer limit) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        orderService.pageMine(memberId, null, 1, limit).getRecords().forEach(row -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("orderSn", ((Orders) row.get("order")).getOrderSn());
+            item.put("status", ((Orders) row.get("order")).getStatus());
+            item.put("payAmount", ((Orders) row.get("order")).getPayAmount());
+            item.put("createTime", ((Orders) row.get("order")).getCreateTime());
+            @SuppressWarnings("unchecked")
+            List<OrderItem> orderItems = (List<OrderItem>) row.get("items");
+            List<Map<String, Object>> items = new ArrayList<>();
+            for (OrderItem oi : orderItems) {
+                Map<String, Object> oiMap = new LinkedHashMap<>();
+                oiMap.put("spuName", oi.getSpuName());
+                oiMap.put("spec", oi.getSpec());
+                oiMap.put("price", oi.getPrice());
+                oiMap.put("quantity", oi.getQuantity());
+                items.add(oiMap);
+            }
+            item.put("items", items);
+            rows.add(item);
+        });
+        return Result.success(rows);
     }
 }
