@@ -1,6 +1,7 @@
 package com.mall.ai.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.mall.ai.model.AiUser;
 import com.mall.ai.model.ChatMessage;
 import com.mall.ai.model.ChatSession;
@@ -66,20 +67,30 @@ public class AiHistoryService {
         // 同会话多轮只取最新一轮（按 sessionId 去重保序）
         Map<String, AiChatMessage> perSession = latestUser.stream()
                 .collect(Collectors.toMap(AiChatMessage::getSessionId, m -> m, (a, b) -> a));
+        if (perSession.isEmpty()) {
+            return List.of();
+        }
+        // 一次 groupBy 统计各会话消息总数，避免 N+1 逐条 count
+        Map<String, Long> totals = messageMapper.selectMaps(new QueryWrapper<AiChatMessage>()
+                        .select("session_id", "COUNT(*) AS total")
+                        .eq("scene", scene)
+                        .in("session_id", perSession.keySet())
+                        .groupBy("session_id"))
+                .stream()
+                .collect(Collectors.toMap(
+                        m -> String.valueOf(m.get("session_id")),
+                        m -> ((Number) m.get("total")).longValue()));
         return perSession.entrySet().stream()
                 .sorted((a, b) -> b.getValue().getCreateTime().compareTo(a.getValue().getCreateTime()))
                 .limit(limit)
                 .map(e -> {
                     String sessionId = e.getKey();
                     AiChatMessage last = e.getValue();
-                    Long total = messageMapper.selectCount(new LambdaQueryWrapper<AiChatMessage>()
-                            .eq(AiChatMessage::getScene, scene)
-                            .eq(AiChatMessage::getSessionId, sessionId));
                     String preview = last.getContent();
                     if (preview != null && preview.length() > 24) {
                         preview = preview.substring(0, 24) + "…";
                     }
-                    return new ChatSession(sessionId, preview, total, last.getCreateTime());
+                    return new ChatSession(sessionId, preview, totals.getOrDefault(sessionId, 0L), last.getCreateTime());
                 })
                 .toList();
     }
@@ -120,21 +131,28 @@ public class AiHistoryService {
         if (user == null || !user.isLoggedIn() || sessionId == null || sessionId.isBlank()) {
             return List.of();
         }
-        List<AiChatMessage> rows = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
-                .eq(AiChatMessage::getScene, scene)
-                .eq(AiChatMessage::getSessionId, sessionId)
-                .eq(AiChatMessage::getUserId, user.userId())
-                .orderByDesc(AiChatMessage::getId)
-                .last("LIMIT " + (maxTurns * 2)));
-        List<ChatMessage> messages = new java.util.ArrayList<>(rows.stream()
-                .sorted((a, b) -> a.getId().compareTo(b.getId()))
-                .map(m -> new ChatMessage(m.getRole(), m.getContent()))
-                .toList());
-        // 剔除尾部 user 消息（刚落库的当前问题；若上一轮回答中断，历史末尾的悬空提问一并剔除），
-        // 保证上下文以最近一轮 assistant 回答结尾，避免连续 user 消息干扰模型
-        while (!messages.isEmpty() && "user".equals(messages.get(messages.size() - 1).role())) {
-            messages = messages.subList(0, messages.size() - 1);
+        try {
+            List<AiChatMessage> rows = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+                    .eq(AiChatMessage::getScene, scene)
+                    .eq(AiChatMessage::getSessionId, sessionId)
+                    .eq(AiChatMessage::getUserId, user.userId())
+                    .orderByDesc(AiChatMessage::getId)
+                    .last("LIMIT " + (maxTurns * 2)));
+            List<ChatMessage> messages = new java.util.ArrayList<>(rows.stream()
+                    .sorted((a, b) -> a.getId().compareTo(b.getId()))
+                    .map(m -> new ChatMessage(m.getRole(), m.getContent()))
+                    .toList());
+            // 剔除尾部 user 消息（刚落库的当前问题；若上一轮回答中断，历史末尾的悬空提问一并剔除），
+            // 保证上下文以最近一轮 assistant 回答结尾，避免连续 user 消息干扰模型
+            while (!messages.isEmpty() && "user".equals(messages.get(messages.size() - 1).role())) {
+                messages = messages.subList(0, messages.size() - 1);
+            }
+            return messages;
+        } catch (Exception e) {
+            // 历史上文加载失败不阻断对话：降级为无上下文单轮
+            log.warn("AI context load failed, degrade to stateless: scene={}, sessionId={}, err={}",
+                    scene, sessionId, e.getMessage());
+            return List.of();
         }
-        return messages;
     }
 }

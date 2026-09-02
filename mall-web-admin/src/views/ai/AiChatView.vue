@@ -28,7 +28,6 @@ const sending = ref(false)
 const listEl = ref<HTMLElement>()
 
 const anyAvailable = computed(() => models.value.some((m) => m.available))
-const activePreview = computed(() => activeSid.value)
 
 /** 本地生成 sessionId（与 mall-ai normalizeSessionId 同风格：UUID 去横线） */
 function genSid(): string {

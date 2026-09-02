@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 
 /**
@@ -16,11 +17,14 @@ import org.springframework.context.annotation.Bean;
  * （领券分布式锁用；纯核心库手动装配，避开 redisson-spring-boot-starter 的 Boot 4 适配风险）。
  * 条件装配：只有依赖 common 且显式声明 Redisson 使用（classpath 存在）的服务生效，
  * 未注入 RedissonClient 的服务零开销（Bean 仅创建一次连接池）。
+ * 另加 spring.data.redis.host 开关：未配置 Redis 连接的服务不再装配，
+ * 避免 Redisson.create 启动即连，导致无 Redis 依赖的服务强制要求 Redis 可达。
  * @author renmingl
  * @date 2026-09-01 14:00:00
  */
 @AutoConfiguration
 @ConditionalOnClass(RedissonClient.class)
+@ConditionalOnProperty(name = "spring.data.redis.host")
 public class RedissonAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(RedissonAutoConfiguration.class);

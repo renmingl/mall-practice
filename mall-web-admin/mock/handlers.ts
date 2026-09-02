@@ -688,7 +688,7 @@ export const handlers: MockHandler[] = [
   {
     method: 'POST', url: '/ai/chat/stream', handler: (ctx) => {
       const body = (ctx.body || {}) as { message?: string; sessionId?: string }
-      const reply = aiMockReply(body.message)
+      const reply = aiMockReply(body.message || '')
       // 追加进会话库：让左侧历史列表 / 刷新后可见新会话（与后端 ai_chat_message 落库语义对齐）
       const sid = body.sessionId || 'mock-ai-' + Date.now()
       const arr = (aiMessagesBySession[sid] ||= [])

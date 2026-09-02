@@ -16,7 +16,10 @@ import java.nio.charset.StandardCharsets;
 /**
  * 后台管理接口权限过滤器（Servlet 栈业务服务兜底防护）
  * 网关 AuthGlobalFilter 已对 /api/admin/** 校验 userType=ADMIN；本过滤器在业务服务侧
- * 再次校验 X-User-Type 头，防止内网直连/伪造同名头绕过网关直接访问后台接口。
+ * 再次校验 X-User-Type 头，作为“未带头不得入”的直连兜底。
+ * 信任边界：本过滤器只校验头值，防不了调用方伪造该头——真正的鉴权在网关
+ * （JWT 校验后覆盖注入用户头）。因此业务服务端口仅限内网访问，不得对公网暴露
+ * （见 docs/architecture.md 信任模型）。
  * 注册见 CommonAutoConfiguration（FilterRegistrationBean 拦截 /api/admin/*）。
  * 内部契约接口（/internal/**）不受影响；admin 登录（/api/auth/admin/**）不在拦截前缀内。
  * @author renmingl

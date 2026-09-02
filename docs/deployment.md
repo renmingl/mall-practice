@@ -125,6 +125,7 @@ docker compose -f docker-compose.apps.yml up -d --scale mall-order=3   # 订单�
 ### 注意事项
 
 - **内存**：13 个微服务 JVM 已限制 `-Xmx256m`，全开约 4GB；内存紧张可 `docker compose -f docker-compose.apps.yml stop mall-search` 等按需停服
+- **JWT 密钥**：正式部署/公网使用前必须修改 mall-auth 配置中的 JWT secret（学习项目内置了默认值），否则他人可伪造 token 冒充任意用户（含管理员）
 - **搜索功能**：需先启动 ES/Canal：`cd docker && docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile search up -d`
 - **xxl-job 初始化**：首次使用需在 MySQL 导入 `sql/xxl_job.sql`（3.1.0 表结构）
 - **本机中间件替代**：若使用本机 MySQL/Redis，删除 compose 对应服务段，并把微服务环境变量中的 `mysql:3306`/`redis:6379` 改为 `host.docker.internal:3306`/`host.docker.internal:6379`，同时删除对应 `depends_on` 条目

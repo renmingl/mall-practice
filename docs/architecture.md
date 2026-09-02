@@ -368,6 +368,12 @@ graph TB
 | JUnit 5 + Mockito | 最新版 | 单元测试（各模块 src/test 内，不建独立测试模块）；全链路联调用 springdoc（doc.html）页面手动验证 |
 | Logback + SLF4J | 1.5.x（Boot 4 内置 spring-boot-starter-logging 默认日志栈，无需额外依赖） | 日志框架：控制台 + 滚动文件输出、MDC traceId 跨服务串链（见「日志方案」） |
 
+**信任模型（服务间身份传递）**
+
+- 鉴权只在**网关**：AuthGlobalFilter 校验 JWT（含 Redis 黑名单）后，将 X-User-Id / X-User-Type 注入请求头并**覆盖客户端原值**，再转发下游
+- 下游服务（如 mall-ai resolveUser、各业务 UserContext）信任网关注入的头；服务内 AdminApiAuthFilter 仅作「未带头不得入」的直连兜底，**防不了伪造头**
+- 因此**业务服务端口（92xx 等）不得直接对公网暴露**，仅网关 8080 对外；内网直连调试属信任环境（若需对公网暴露业务服务，须改用服务间签名/内部 token 方案）
+
 ### 前端（仓库内 npm 模块，独立部署）
 
 | 模块 | 端 | 技术栈 | 部署 |

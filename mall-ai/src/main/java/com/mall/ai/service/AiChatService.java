@@ -112,10 +112,13 @@ public class AiChatService {
         }
     }
 
-    /** sessionId 缺省生成（UUID 短码）；游客的 sessionId 仅用于请求内一致，不落库 */
+    /** sessionId 缺省生成（UUID 短码）；游客的 sessionId 仅用于请求内一致，不落库；长度上限与库表字段对齐 */
     private String normalizeSessionId(String sessionId) {
         if (sessionId == null || sessionId.isBlank()) {
             return UUID.randomUUID().toString().replace("-", "");
+        }
+        if (sessionId.length() > 64) {
+            throw new BizException("sessionId 不合法（上限 64 字符）");
         }
         return sessionId;
     }
@@ -161,6 +164,14 @@ public class AiChatService {
         return p.getApiKey() != null && !p.getApiKey().isBlank();
     }
 
+    /** 日志截断：上游错误响应可能很长，只留前 500 字符，避免日志膨胀 */
+    private static String truncate(String text) {
+        if (text == null) {
+            return null;
+        }
+        return text.length() <= 500 ? text : text.substring(0, 500) + "...(已截断)";
+    }
+
     /** 调用 OpenAI 兼容协议 POST {baseUrl}/chat/completions（非流式），返回模型回复文本 */
     private String invoke(AiProperties.Provider provider, List<ChatMessage> messages) {
         try {
@@ -169,13 +180,13 @@ public class AiChatService {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             String respBody = response.body();
             if (response.statusCode() != 200) {
-                log.warn("AI upstream error: provider={}, status={}, body={}", provider.getLabel(), response.statusCode(), respBody);
+                log.warn("AI upstream error: provider={}, status={}, body={}", provider.getLabel(), response.statusCode(), truncate(respBody));
                 throw new BizException("模型【" + provider.getLabel() + "】调用失败（HTTP " + response.statusCode() + "），请检查 API Key 是否有效");
             }
             JsonNode root = objectMapper.readTree(respBody);
             JsonNode choice = root.path("choices").path(0);
             if (choice.isMissingNode()) {
-                log.warn("AI upstream empty choices: body={}", respBody);
+                log.warn("AI upstream empty choices: body={}", truncate(respBody));
                 throw new BizException("模型【" + provider.getLabel() + "】返回异常：无有效回复内容");
             }
             return choice.path("message").path("content").asText("").trim();
@@ -201,7 +212,7 @@ public class AiChatService {
             try (java.util.stream.Stream<String> lines = response.body()) {
                 if (response.statusCode() != 200) {
                     String errBody = lines.limit(500).reduce("", String::concat);
-                    log.warn("AI upstream error: provider={}, status={}, body={}", provider.getLabel(), response.statusCode(), errBody);
+                    log.warn("AI upstream error: provider={}, status={}, body={}", provider.getLabel(), response.statusCode(), truncate(errBody));
                     throw new BizException("模型【" + provider.getLabel() + "】调用失败（HTTP " + response.statusCode() + "），请检查 API Key 是否有效");
                 }
                 lines.forEach(line -> {

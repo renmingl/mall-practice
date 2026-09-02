@@ -11,6 +11,7 @@ import com.mall.common.result.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,11 +25,14 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * AI 助手接口（阶段 9 16.1/16.3）：模型配置 / 问答（流式与非流式）/ 会话历史
  * 路由 /api/ai/**（网关转发 mall-ai）：游客免登录普通问答；带 token 的请求网关透传
  * X-User-Id / X-User-Type 后在此解析出 AiUser，实现登录态能力分层与历史隔离
+ * 信任边界：用户头由网关在 JWT 校验后注入并覆盖客户端原值，本服务仅信任网关注入值；
+ * 服务端口仅限内网访问，不得直接对公网暴露（见 docs/architecture.md 信任模型）
  * @author renmingl
  * @date 2026-09-02 15:13:13
  */
@@ -40,6 +44,9 @@ public class AiChatController {
 
     private final AiChatService chatService;
     private final AiHistoryService historyService;
+    /** SSE 流式任务专用线程池（AiExecutorConfig）：不占用 ForkJoinPool.commonPool */
+    @Qualifier("aiSseExecutor")
+    private final Executor aiSseExecutor;
 
     /** 模型清单：前端据此渲染选择器；available=false 表示该模型未配置 API Key，置灰不可选 */
     @GetMapping("/config")
@@ -70,7 +77,7 @@ public class AiChatController {
                                  @RequestHeader(value = "X-User-Id", required = false) Long userId,
                                  @RequestHeader(value = "X-User-Type", required = false) String userType) {
         SseEmitter emitter = new SseEmitter(0L);
-        // 工作线程不继承 MDC，手动透传 traceId（commonPool 线程无上下文，clear 安全）
+        // 工作线程不继承 MDC，手动透传 traceId（线程池线程无上下文，clear 安全）
         Map<String, String> trace = MDC.getCopyOfContextMap();
         CompletableFuture.runAsync(() -> {
             if (trace != null && !trace.isEmpty()) {
@@ -91,7 +98,7 @@ public class AiChatController {
             } finally {
                 MDC.clear();
             }
-        });
+        }, aiSseExecutor);
         return emitter;
     }
 
