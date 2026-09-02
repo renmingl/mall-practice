@@ -62,7 +62,7 @@
 
 | 中间件 | 端口 | 用途 |
 |---|---|---|
-| MySQL 8.3 | 3306 | 核心交易数据（账密在 docker/.env 配置，数据持久化到 ${DOCKER_DATA_DIR}\mysql） |
+| MySQL 8.3 | 3306 | 核心交易数据（root 密码首启固化，微服务连接账密取 docker/.env 的 DB_*，机制见下表后说明；数据持久化到 ${DOCKER_DATA_DIR}\mysql） |
 | Redis 7.2 | 6379 | 缓存/购物车/秒杀预扣库存（账密在 docker/.env 配置，AOF 持久化到 ${DOCKER_DATA_DIR}\redis） |
 | Nacos 3.x | 8848 / 9848（控制台 8849） | 注册中心 + 配置中心（Derby 数据持久化） |
 | RocketMQ 5.x | 9876 / 10909 / 10911（Dashboard 9081） | 消息队列（Broker 消息存储持久化） |
@@ -71,6 +71,8 @@
 | Canal 1.1.7 | 11111 | MySQL binlog 增量同步（product_spu 变更 → ES 商品索引；订阅配置 docker/canal/instance.properties，无数据持久化） |
 | XXL-Job 3.x | 9080 | 任务调度 |
 | SkyWalking 10.x | 11800 / 12800（UI 9090） | 链路追踪 |
+
+> **MySQL 密码初始化机制**：容器版 MySQL 的 root 密码只在数据目录（`${DOCKER_DATA_DIR}\mysql`）**首次初始化**时由 `MYSQL_ROOT_PASSWORD` 变量写入并永久固化（作者本地默认 `root/123456`）；该变量以注释示例形式保留在 `docker/docker-compose.yml` 的 mysql 段（全新环境取消注释即可，须与 .env 的 `DB_PASSWORD` 一致），数据目录初始化后不再生效。微服务（各模块 application.yml 的 datasource）、XXL-Job、Canal 所用账密必须与固化后的密码一致；**使用本机 MySQL 时请自行修改这些位置的账密**。改密需登录 MySQL 执行 `ALTER USER`，或删除数据目录后重新初始化。
 
 > **客户端依赖 vs 服务端**：以上中间件均分为两部分，缺一不可：
 > - **客户端**：pom 依赖形式引入代码（如 nacos-discovery starter、rocketmq-spring-boot-starter、seata starter、ES Java Client、xxl-job-core 执行器、canal.client（mall-search 直连 Canal Server 拉 binlog））；SkyWalking 特殊——agent 是 JVM 参数挂载的 jar，连 pom 依赖都不是

@@ -164,9 +164,16 @@ services:
     restart: unless-stopped
 
   # ---------- MySQL / Redis（容器版；本机已装可删对应段） ----------
+  # 用户名默认 root（镜像固定，无需配置）；root 密码仅在数据目录首次初始化时由
+  # MYSQL_ROOT_PASSWORD 设置（值取 .env 的 DB_PASSWORD，微服务/XXL-Job 连接也用同一个），
+  # 之后密码固化在 ${DOCKER_DATA_DIR}/mysql 数据目录中，该变量不再生效。作者本地已固化为
+  # root/123456；全新环境首启前取消下方注释即可，改密需 ALTER USER 或删数据目录重建
   mysql:
     image: mysql:8.3
     container_name: mall-mysql
+    # 仅首启生效：取消注释即用 .env 的 DB_PASSWORD 初始化 root 密码
+    # environment:
+    #   - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
     ports:
       - "3306:3306"
     volumes:

@@ -49,7 +49,10 @@
 
 ```powershell
 # 本步在仓库根目录执行（compose 文件在 docker/ 目录，用 -f 指定；sql 文件在 ./sql）
-# 使用容器版 MySQL：先单独拉起 MySQL 容器（本机已装 MySQL 则跳过本行，直接在本机客户端执行两个 sql 文件）
+# 使用容器版 MySQL：先单独拉起 MySQL 容器；全新环境首次初始化需在 docker/docker-compose.yml 的
+# mysql 服务里取消注释 MYSQL_ROOT_PASSWORD（注释示例见该文件 mysql 段）
+# 本机已装 MySQL 则跳过本行：直接在本机客户端执行两个 sql 文件，并把各模块 application.yml 的
+# datasource 账密改成你本机 MySQL 的账密（仓库默认按作者本地 root/123456 写的）
 docker compose -f docker/docker-compose.yml up -d mysql
 
 # 导入 xxl_job 库（XXL-Job 调度中心表，3.1.0 版；-p 后为你的 MySQL root 密码）
@@ -59,7 +62,7 @@ Get-Content .\sql\xxl_job.sql -Raw -Encoding UTF8 | docker exec -i mall-mysql my
 Get-Content .\sql\mall.sql -Raw -Encoding UTF8 | docker exec -i mall-mysql mysql -uroot -p<密码>
 ```
 
-> 中间件账密（Redis/Nacos/XXL-Job）统一在 `docker/.env` 配置，模板见 `docker/.env.example`；MySQL 密码变更需同步其中 `XXL_JOB_DB_PASSWORD`，Redis 密码变更需同步各模块 application.yml。
+> 中间件账密（Redis/Nacos/XXL-Job）统一在 `docker/.env` 配置，模板见 `docker/.env.example`；容器版 MySQL 的 root 密码只在数据目录**首次初始化**时由 `MYSQL_ROOT_PASSWORD` 固化（作者本地默认 root/123456，微服务与 XXL-Job 均用它），此后改 .env 不生效，改密需 SQL `ALTER USER` 或删数据目录重建；**使用本机 MySQL 时**，各模块 application.yml 的 datasource 账密需自行改为本机 MySQL 的账密，并同步 `docker/.env` 的 `DB_PASSWORD` / `XXL_JOB_DB_PASSWORD`；Redis 密码变更需同步各模块 application.yml。
 >
 > 两个脚本均为一次性初始化（建表不带 IF NOT EXISTS），重复执行报“表已存在”可忽略；mall.sql 自带种子数据，默认账号 **admin / admin123** 见「第 5 步」。
 
