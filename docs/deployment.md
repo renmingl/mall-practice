@@ -55,8 +55,8 @@
 
 12 个后端微服务 + 2 个前端已全部支持打镜像（仓库已含 Dockerfile 与 compose 微服务段）：
 
-- 后端：`docker/Dockerfile.backend` 通用多阶段模板（Maven 构建 fat jar → `eclipse-temurin:17-jre` 运行），12 模块共用，`--build-arg MODULE=<模块名>` 区分
-- 前端：`docker/Dockerfile.frontend` 通用镜像（Node 构建 → Nginx 托管，同域反代网关），admin/portal 共用，`--build-arg APP_DIR=<前端目录>` 区分
+- 后端：`docker/app/backend/Dockerfile` 通用多阶段模板（Maven 构建 fat jar → `eclipse-temurin:17-jre` 运行），12 模块共用，`--build-arg MODULE=<模块名>` 区分
+- 前端：`docker/app/frontend/Dockerfile` 通用镜像（Node 构建 → Nginx 托管，同域反代网关），admin/portal 共用，`--build-arg APP_DIR=<前端目录>` 区分（Nginx 配置同目录 `nginx.conf`）
 - 镜像命名：`${IMAGE_PREFIX:-mall-practice}/<模块>:${APP_TAG:-latest}`（本地默认 `mall-practice/xxx:latest`）
 - 配置：各模块 application.yml 写死的 127.0.0.1 由 compose 环境变量覆盖为容器服务名（Spring Boot 宽松绑定，零代码改动）
 
@@ -102,6 +102,15 @@ cd docker && docker compose -f docker-compose.yml -f docker-compose.apps.yml --p
 docker compose -f docker-compose.apps.yml up -d --scale mall-order=3   # 订单服务 3 副本
 ```
 
+### CI 自动构建（GitHub Actions）
+
+仓库内置 CI：`.github/workflows/docker-build.yml`，**push 到 master 后自动构建全部 14 个镜像并推送到 GHCR**（GitHub Container Registry，GitHub 自带镜像仓库，无需额外 Token）。**CI 只能构建已提交（push）的代码**；本地未提交的修改无法触发 CI，请用「方式二」在本地直接构建：
+
+- **触发条件**：push 到 master（仅后端/前端/docker 相关代码变更才触发，纯文档变更不浪费构建）；也可在 Actions 页面手动 **Run workflow** 触发
+- **构建产物**：`ghcr.io/<GitHub用户名>/<模块>:<commit SHA>` 与 `:latest`（镜像名小写；后端 12 个 + 前端 2 个；公共仓库任何人可拉取）
+- **权限**：仓库需开启 Actions 写权限（Settings → Actions → General → **Workflow permissions** → Read and write permissions），否则推送 GHCR 会失败
+- **fork 自建**：fork 后 Actions 默认不运行，需在 fork 仓库手动开启；构建产物推送到 `ghcr.io/<fork用户名>/...`，部署时相应修改 IMAGE_PREFIX
+
 ### 访问地址
 
 | 入口 | 地址 |
@@ -118,9 +127,8 @@ docker compose -f docker-compose.apps.yml up -d --scale mall-order=3   # 订单�
 - **搜索功能**：需先启动 ES/Canal：`cd docker && docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile search up -d`
 - **xxl-job 初始化**：首次使用需在 MySQL 导入 `sql/xxl_job.sql`（3.1.0 表结构）
 - **本机中间件替代**：若使用本机 MySQL/Redis，删除 compose 对应服务段，并把微服务环境变量中的 `mysql:3306`/`redis:6379` 改为 `host.docker.internal:3306`/`host.docker.internal:6379`，同时删除对应 `depends_on` 条目
-- **远程镜像仓库**：IMAGE_PREFIX 是切换「本地构建 / CI 远程拉取」两种模式的核心开关（详见 README「镜像命名与 IMAGE_PREFIX」）。CI（GitHub Actions）构建推送到 GHCR 后，任意机器可 `docker compose pull` 拉取运行：
+- **远程镜像仓库**：IMAGE_PREFIX 是切换「本地构建 / CI 远程拉取」两种模式的核心开关（操作见 README「方式三：免构建直接运行」）。CI（GitHub Actions）构建推送到 GHCR 后，任意机器可 `docker compose pull` 拉取运行：
   ```powershell
   $env:IMAGE_PREFIX="ghcr.io/<GitHub用户名>"; cd docker; docker compose -f docker-compose.apps.yml pull; docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile rocketmq --profile seata --profile task up -d
   ```
-- **CI 触发**：push 到 master 后 `.github/workflows/docker-build.yml` 自动构建 14 个镜像并推送 GHCR（tag 为 commit SHA + latest）
 

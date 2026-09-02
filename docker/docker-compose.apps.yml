@@ -30,7 +30,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-auth:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-auth
     restart: unless-stopped
@@ -43,7 +43,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-admin:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-admin
     restart: unless-stopped
@@ -56,7 +56,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-portal:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-portal
     restart: unless-stopped
@@ -69,7 +69,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-member:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-member
     restart: unless-stopped
@@ -84,7 +84,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-product:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-product
     restart: unless-stopped
@@ -105,7 +105,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-cart:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-cart
     restart: unless-stopped
@@ -118,7 +118,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-order:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-order
     restart: unless-stopped
@@ -138,7 +138,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-payment:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-payment
     restart: unless-stopped
@@ -154,7 +154,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-coupon:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-coupon
     restart: unless-stopped
@@ -172,7 +172,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-seckill:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-seckill
     restart: unless-stopped
@@ -190,7 +190,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-search:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-search
     restart: unless-stopped
@@ -205,7 +205,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-gateway:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: Dockerfile.backend
+      dockerfile: docker/app/backend/Dockerfile
       args:
         MODULE: mall-gateway
     restart: unless-stopped
@@ -214,12 +214,12 @@ services:
     ports:
       - "8080:8080"
 
-  # ---------- 前端（Nginx 托管静态产物，同域反代网关；公共镜像 docker/Dockerfile.frontend） ----------
+  # ---------- 前端（Nginx 托管静态产物，同域反代网关；公共镜像 docker/app/frontend/Dockerfile） ----------
   mall-web-admin:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-web-admin:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: docker/Dockerfile.frontend
+      dockerfile: docker/app/frontend/Dockerfile
       args:
         APP_DIR: mall-web-admin
     ports:
@@ -230,7 +230,7 @@ services:
     image: ${IMAGE_PREFIX:-mall-practice}/mall-web-portal:${APP_TAG:-latest}
     build:
       context: ..
-      dockerfile: docker/Dockerfile.frontend
+      dockerfile: docker/app/frontend/Dockerfile
       args:
         APP_DIR: mall-web-portal
     ports:

@@ -10,7 +10,7 @@
 *.war
 
 # 前端（后端构建不需要；前端公共 Dockerfile 构建上下文=仓库根，
-# 只排除产物与依赖，源码需进上下文供 docker/Dockerfile.frontend COPY）
+# 只排除产物与依赖，源码需进上下文供 docker/app/frontend/Dockerfile COPY）
 mall-web-admin/node_modules
 mall-web-admin/dist
 mall-web-portal/node_modules

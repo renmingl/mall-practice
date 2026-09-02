@@ -19,15 +19,14 @@
 - [技术点](#技术点)：全栈技术点速览
 - [快速开始](#快速开始)：第 1～5 步 + 启动前端 + 验证
 - [不启动后端浏览页面（Mock 演示模式）](#不启动后端浏览页面mock-演示模式)：无需任何后端服务，前端内置演示数据，全部页面可浏览可点击，附实拍截图
-- [本地打包运行（Docker 镜像化部署）](#本地打包运行docker-镜像化部署)：中间件与应用拆分两个 yaml，一键脚本或手动命令构建镜像并启动
-- [CI 自动构建（GitHub Actions）](#ci-自动构建github-actions)：push 到 master 自动构建镜像推送 GHCR，部署机一条命令拉取运行
+- [本地打包运行（Docker 镜像化部署）](#本地打包运行docker-镜像化部署)：中间件与应用拆分两个 yaml，一键脚本 / 手动命令 / 免构建拉取三种方式
 - [专题文档（docs/）](#专题文档docs)：全部解释性内容按专题拆分到 docs/，README 只保留可直接照抄的操作步骤
 
 ## 快速开始
 
 > 第一次接触本项目？按下面 **5 个步骤**顺序操作即可把整套系统跑起来。环境安装的完整版本说明见 [docs/environment.md](docs/environment.md)「环境准备详解」，按需查阅。
 
-→ 硬件配置要求与极限内存压缩方案（内存明细 / 配置分档 / 降载 / 云服务器 / 16GB 实测压缩）见 [docs/hardware.md](docs/hardware.md)「硬件配置要求」与「极限内存压缩方案」两节。
+> 硬件配置要求与极限内存压缩方案（内存明细 / 配置分档 / 降载 / 云服务器 / 16GB 实测压缩）见 [docs/hardware.md](docs/hardware.md)「硬件配置要求」与「极限内存压缩方案」两节。
 
 ### 第 1 步：安装基础环境（一次性）
 
@@ -40,7 +39,7 @@
 | Node.js | 20.x LTS 及以上 | 必须 | 前端两个模块（mall-web-admin / mall-web-portal）的开发与构建；安装后自带 npm |
 | Docker | 最新版 | 非必须（强烈推荐） | 9 个中间件（12 容器）一键部署 + `--scale` 多实例模拟；内存建议分配 4～8GB（默认 3 件套约 1GB，全量约 5GB+）；Windows/mac/Linux 三平台安装方式见 [docs/environment.md](docs/environment.md)「强烈推荐：Docker 容器化」节（Windows 用 Docker Desktop，支持 WSL2 / Hyper-V 两种后端任选其一） |
 | 阿里云 OSS / ODPS | 云服务 | 非必须（可选，可后补） | 商品图片对象存储（配置 `mall.product.oss.enabled=true` 即启用，未配置默认本地存储）/ 离线数仓，学习阶段可不接入 |
-→ 本项目 9 个中间件 = 12 个容器（MySQL / Redis / Nacos / RocketMQ / Seata / Elasticsearch / Canal / XXL-Job / SkyWalking），安装方式见 [docs/environment.md](docs/environment.md)「中间件（docker-compose 按需启动）」节，启动见「第 3 步」。图片上传为配置驱动双通道（本地默认 / 阿里云 OSS 可选），见上表 OSS 行。
+> 本项目 9 个中间件 = 12 个容器（MySQL / Redis / Nacos / RocketMQ / Seata / Elasticsearch / Canal / XXL-Job / SkyWalking），安装方式见 [docs/environment.md](docs/environment.md)「中间件（docker-compose 按需启动）」节，启动见「第 3 步」。图片上传为配置驱动双通道（本地默认 / 阿里云 OSS 可选），见上表 OSS 行。
 
 ### 第 2 步：初始化数据库（必须）
 
@@ -238,39 +237,22 @@ docker compose -f docker-compose.apps.yml build   # 构建应用镜像（中间�
 docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile rocketmq --profile seata --profile task up -d
 ```
 
-> 两种方式的本质区别：**方式一构建的是 git 上已提交的代码，方式二构建的是本地磁盘上的代码（含未提交修改）**。本机改代码后用方式二验证镜像，改完提交 push 后再由 CI 自动构建发布，形成闭环。
-
-**镜像命名与 IMAGE_PREFIX（本地构建 vs CI 远程拉取的核心开关）**：
-
-所有应用镜像统一命名 `${IMAGE_PREFIX:-mall-practice}/<模块>:${APP_TAG:-latest}`，例如本地默认 `mall-practice/mall-order:latest`、CI 场景 `ghcr.io/renmingl/mall-order:latest`。**IMAGE_PREFIX 只是镜像名的前缀（仓库地址 + 命名空间），不决定镜像从哪来**：
-
-| IMAGE_PREFIX | 场景 | 镜像行为 |
-|---|---|---|
-| 不设置（默认 `mall-practice`） | 本地构建（方式一/方式二） | `docker compose build` 把当前源码打进镜像，标签只存在本机 Docker，**不会上传 GitHub** |
-| `ghcr.io/<GitHub用户名>` | CI 部署机（免构建） | 部署机**不构建**，`docker compose pull` 从 GHCR 拉取 CI 推送的现成镜像 |
-
-> 同一套 compose 文件，`build`（源码在本地）与 `pull`（镜像在 GHCR）两种模式靠 IMAGE_PREFIX 切换：前缀是 `mall-practice` 时镜像只存在于本机；前缀是 `ghcr.io/...` 时从 GitHub 容器仓库拉取。中间件镜像不受影响，始终从 Docker Hub 拉取。
-
-启动后访问：管理后台 http://localhost:5173、前台商城 http://localhost:5174、网关 http://localhost:8080、Nacos 控制台 http://localhost:8849；搜索功能需追加 `--profile search`。
-
-停止全部：`docker compose -f docker-compose.yml -f docker-compose.apps.yml down`；只想停应用：`docker compose -f docker-compose.apps.yml stop`。
-
-## CI 自动构建（GitHub Actions）
-
-仓库内置 CI：`.github/workflows/docker-build.yml`，**push 到 master 后自动构建全部 14 个镜像并推送到 GHCR**（GitHub Container Registry，GitHub 自带镜像仓库，无需额外 Token）。**CI 只能构建已提交（push）的代码**；本地未提交的修改无法触发 CI，请用上文方式二在本地直接构建：
-
-- **触发条件**：push 到 master（仅后端/前端/docker 相关代码变更才触发，纯文档变更不浪费构建）；也可在 Actions 页面手动 **Run workflow** 触发
-- **构建产物**：`ghcr.io/<GitHub用户名>/<模块>:<commit SHA>` 与 `:latest`（镜像名小写；后端 12 个 + 前端 2 个）
-- **部署机拉取运行**（无需源码、无需 JDK/Maven/Node，只需 Docker）：
+**方式三：免构建直接运行**（使用者/部署机推荐：无需源码、无需 JDK/Maven/Node，直接拉取 CI 已推送的现成镜像）：
 
 ```powershell
-$env:IMAGE_PREFIX="ghcr.io/<GitHub用户名>"       # 切换到 CI 远程拉取模式（IMAGE_PREFIX 说明见上节）；私有仓库先 docker login ghcr.io
+$env:IMAGE_PREFIX="ghcr.io/renmingl"       # 固定地址（仓库主命名空间；公共镜像无需登录）
 cd docker
 docker compose -f docker-compose.apps.yml pull   # 拉取应用镜像（中间件仍从 Docker Hub 拉取）
 docker compose -f docker-compose.yml -f docker-compose.apps.yml --profile rocketmq --profile seata --profile task up -d
 ```
 
-- **权限**：仓库需开启 Actions 写权限（Settings → Actions → General → **Workflow permissions** → Read and write permissions），否则推送 GHCR 会失败
+> 镜像由仓库主 push 到 master 后 CI 自动构建推送，`latest` 标签随每次发布更新；`ghcr.io/renmingl/...` 是固定地址，公共仓库任何人可拉取。若 fork 自建 CI，地址变为 `ghcr.io/<你的用户名>/...`，相应修改 IMAGE_PREFIX。
+>
+> 三种方式的本质区别：**方式一构建的是 git 上已提交的代码，方式二构建的是本地磁盘上的代码（含未提交修改），方式三不构建、直接拉取 CI 推送的现成镜像**。本机改代码后用方式二验证镜像，改完提交 push 后由 CI 自动构建发布，形成闭环。
+
+**启动后访问**：与上方「第 5 步：验证」一致（端口映射与源码直跑相同）；搜索功能需追加 `--profile search`。
+
+**停止全部**：`docker compose -f docker-compose.yml -f docker-compose.apps.yml down`；只想停应用：`docker compose -f docker-compose.apps.yml stop`。
 
 ## 专题文档（docs/）
 
@@ -280,7 +262,7 @@ README 只保留操作步骤；解释性内容已按专题拆分到 `docs/` 目�
 |---|---|
 | [docs/hardware.md](docs/hardware.md) | 硬件配置要求（内存明细 / 配置分档 / 降载 / 云服务器）+ 极限内存压缩方案 |
 | [docs/environment.md](docs/environment.md) | 环境准备详解（三平台 Docker、中间件配置、账密与持久化）+ 中间件运维常用命令 |
-| [docs/deployment.md](docs/deployment.md) | 端口规划总表 + Docker 镜像化一键部署（构建/启动/访问/注意事项） |
+| [docs/deployment.md](docs/deployment.md) | 端口规划总表 + Docker 镜像化部署（构建/启动/访问/CI 自动构建/注意事项） |
 | [docs/architecture.md](docs/architecture.md) | 5 张架构图 + 技术栈 / 依赖引入状态 |
 | [docs/engineering.md](docs/engineering.md) | 工程结构 / 服务间通信 / 分布式事务策略 / 日志方案 / 链路追踪接入 |
 | [docs/api.md](docs/api.md) | 接口文档：全部 HTTP 接口按模块 + 功能点分类总览（参数详见运行期 doc.html） |

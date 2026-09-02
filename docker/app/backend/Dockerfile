@@ -3,7 +3,7 @@
 # 多阶段构建：Maven 编译 fat jar -> JRE 精简运行
 #
 # 用法（由 docker-compose.yml 或 CI 调用，无需手敲）：
-#   docker build -f docker/Dockerfile.backend --build-arg MODULE=mall-order .
+#   docker build -f docker/app/backend/Dockerfile --build-arg MODULE=mall-order .
 #
 # 设计要点：
 #   1. 多模块依赖：mvn -pl ${MODULE} -am 会连带编译基础模块

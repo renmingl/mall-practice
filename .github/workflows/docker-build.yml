@@ -37,7 +37,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 12 个后端共用 docker/Dockerfile.backend 模板，循环构建推送
+      # 12 个后端共用 docker/app/backend/Dockerfile 模板，循环构建推送
       - name: Build & push backend images
         env:
           PREFIX: ghcr.io/${{ github.repository_owner }} # 仓库名需全小写
@@ -49,7 +49,7 @@ jobs:
                      mall-cart mall-order mall-payment mall-coupon mall-seckill \
                      mall-search mall-gateway; do
             echo "==> Building $mod"
-            docker build -f docker/Dockerfile.backend --build-arg MODULE=$mod \
+            docker build -f docker/app/backend/Dockerfile --build-arg MODULE=$mod \
               -t ${PREFIX}/$mod:${TAG} -t ${PREFIX}/$mod:latest .
             docker push ${PREFIX}/$mod:${TAG}
             docker push ${PREFIX}/$mod:latest
@@ -79,8 +79,8 @@ jobs:
         run: |
           set -euo pipefail
           PREFIX=$(echo "$PREFIX" | tr '[:upper:]' '[:lower:]')
-          # 前后端共用 docker/Dockerfile.frontend，APP_DIR 区分模块（构建上下文=仓库根）
-          docker build -f docker/Dockerfile.frontend --build-arg APP_DIR=mall-web-admin \
+          # 前后端共用 docker/app/frontend/Dockerfile，APP_DIR 区分模块（构建上下文=仓库根）
+          docker build -f docker/app/frontend/Dockerfile --build-arg APP_DIR=mall-web-admin \
             -t ${PREFIX}/mall-web-admin:${TAG} -t ${PREFIX}/mall-web-admin:latest .
           docker push ${PREFIX}/mall-web-admin:${TAG}
           docker push ${PREFIX}/mall-web-admin:latest
@@ -92,7 +92,7 @@ jobs:
         run: |
           set -euo pipefail
           PREFIX=$(echo "$PREFIX" | tr '[:upper:]' '[:lower:]')
-          docker build -f docker/Dockerfile.frontend --build-arg APP_DIR=mall-web-portal \
+          docker build -f docker/app/frontend/Dockerfile --build-arg APP_DIR=mall-web-portal \
             -t ${PREFIX}/mall-web-portal:${TAG} -t ${PREFIX}/mall-web-portal:latest .
           docker push ${PREFIX}/mall-web-portal:${TAG}
           docker push ${PREFIX}/mall-web-portal:latest
