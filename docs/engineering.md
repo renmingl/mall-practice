@@ -77,6 +77,7 @@
 - **普通业务链路**（下单扣库存、扣优惠券）：Seata AT 模式，`@GlobalTransactional` 注解声明，框架自动反向 SQL 回滚
 - **秒杀链路**（Redis 预扣 + MQ 削峰 + 异步落单）：最终一致性——Redis 预扣 + MQ 异步下单 + 关单/对账补偿，不引入全局事务（TCC 两阶段与 MQ 异步链路时序不匹配，本链路不采用；如需演示 TCC，可在普通链路单独搭建对比用例）
 - **进阶对比**：RocketMQ 事务消息（半消息 + 回查）实现"本地事务 + 消息"原子性
+- **消息可靠性参数（8.x 落地）**：生产者发送失败重试（order/payment/seckill：`spring.cloud.stream.rocketmq.default.producer` retry-times-when-send-failed=3 + retry-another-broker=true，StreamBridge 动态 destination 走该默认属性）；消费失败重投由 client 控制（order/product/coupon/member 业务消费者：`consumer.push.delay-level-when-next-consume=8` ≈ 4 分钟/次，`max-reconsume-times=5` 后进 `%DLQ%{group}`）；DLQ 消费者保持默认重投上限，尽力落库 `mq_dead_letter` 不漏死信
 
 ## 日志方案
 

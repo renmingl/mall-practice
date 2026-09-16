@@ -23,6 +23,11 @@ spring:
       rocketmq:
         binder:
           name-server: 127.0.0.1:9876
+        # 生产者可靠性：发送失败同步重试 3 次 + 换 Broker 重试（兜底：本地消息表定时补发）
+        default:
+          producer:
+            retry-times-when-send-failed: 3
+            retry-another-broker: true
 
 # xxl-job 执行器（阶段 6 兜底任务集中调度；@Scheduled 本地双通道兜底并存）
 xxl:

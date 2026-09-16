@@ -58,16 +58,28 @@ spring:
       rocketmq:
         binder:
           name-server: 127.0.0.1:9876
+        # 生产者可靠性：发送失败同步重试 3 次 + 换 Broker 重试（StreamBridge 动态 destination 走默认属性）
+        default:
+          producer:
+            retry-times-when-send-failed: 3
+            retry-another-broker: true
+        # 消费失败重投（client 控制策略）：延迟级别 8 ≈ 4 分钟/次，重投 5 次后进 %DLQ%{group}（8.5）；DLQ 消费者保持默认上限
         bindings:
           orderCloseConsumer-in-0:
             consumer:
-              delay-level-when-next-consume: 8
+              push:
+                delay-level-when-next-consume: 8
+                max-reconsume-times: 5
           orderRefundConsumer-in-0:
             consumer:
-              delay-level-when-next-consume: 8
+              push:
+                delay-level-when-next-consume: 8
+                max-reconsume-times: 5
           seckillOrderConsumer-in-0:
             consumer:
-              delay-level-when-next-consume: 8
+              push:
+                delay-level-when-next-consume: 8
+                max-reconsume-times: 5
 
 # xxl-job 执行器（阶段 5/6 兜底任务集中调度；@Scheduled 本地双通道兜底并存）
 xxl:
